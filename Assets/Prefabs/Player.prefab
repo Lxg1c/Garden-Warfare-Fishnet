@@ -46,6 +46,7 @@ GameObject:
   - component: {fileID: 8326548913328295048}
   - component: {fileID: 8897264402051453330}
   - component: {fileID: 8112768175579382184}
+  - component: {fileID: 6960838450727218714}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -259,9 +260,25 @@ MonoBehaviour:
   m_ActionEvents: []
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: 
-  m_DefaultActionMap: df70fa95-8a34-4494-b137-73ab6b9c7d37
+  m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
+--- !u!114 &6960838450727218714
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5df2a257c57c3d945ac9c2ce956ef8db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerSetup
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 8326548913328295048}
+  _networkObjectCache: {fileID: 0}
+  cameraPrefab: {fileID: 7870449035387090413, guid: 814d0591bba902c4db6d4d08231eecd8, type: 3}
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0
