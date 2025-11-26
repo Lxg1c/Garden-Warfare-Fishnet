@@ -45,14 +45,17 @@ namespace FischlWorks_FogWar
         private List<MeshRenderer> meshRenderers = null;
         private List<SkinnedMeshRenderer> skinnedMeshRenderers = null;
 
-
+        public bool GetVisibility()
+        {
+            return visibility;
+        }
 
         private void Start()
         {
             // This part is meant to be modified following the project's scene structure later...
             try
             {
-                fogWar = FindObjectOfType<csFogWar>();
+                fogWar = FindFirstObjectByType<csFogWar>();
             }
             catch
             {
@@ -63,11 +66,6 @@ namespace FischlWorks_FogWar
 
             meshRenderers = GetComponentsInChildren<MeshRenderer>().ToList();
             skinnedMeshRenderers = GetComponentsInChildren<SkinnedMeshRenderer>().ToList();
-        }
-
-        public bool GetVisibility()
-        {
-            return visibility;
         }
 
 
@@ -116,7 +114,7 @@ namespace FischlWorks_FogWar
                 return;
             }
 
-            if (fogWar.CheckVisibility(transform.position, additionalRadius) == true)
+            if (fogWar.CheckVisibility(transform.position, additionalRadius))
             {
                 Gizmos.color = Color.green;
             }

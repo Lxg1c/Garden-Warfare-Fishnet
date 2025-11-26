@@ -33,7 +33,7 @@ namespace FischlWorks_FogWar
             // This part is meant to be modified following the project's scene structure later...
             try
             {
-                fogWar = FindObjectOfType<csFogWar>();
+                fogWar = FindFirstObjectByType<csFogWar>();
             }
             catch
             {
