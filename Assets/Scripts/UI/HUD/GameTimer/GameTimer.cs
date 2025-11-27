@@ -10,7 +10,7 @@ namespace UI.HUD.GameTimer
         
         private float _currentTime;
         private float _lastSyncTime;
-        private const float SYNC_INTERVAL = 0.5f; // Синхронизируем каждые 0.5 секунды
+        private const float SyncInterval = 0.5f;
 
         public override void OnStartNetwork()
         {
@@ -25,20 +25,17 @@ namespace UI.HUD.GameTimer
 
         private void Update()
         {
-            // Сервер обновляет время
             if (IsServerInitialized)
             {
                 _currentTime += Time.deltaTime;
                 
-                // Синхронизируем только каждые SYNC_INTERVAL секунд для оптимизации
-                if (_currentTime - _lastSyncTime >= SYNC_INTERVAL)
+                if (_currentTime - _lastSyncTime >= SyncInterval)
                 {
                     UpdateTimerObserversRpc(_currentTime);
                     _lastSyncTime = _currentTime;
                 }
             }
             
-            // Все клиенты обновляют отображение плавно
             UpdateTimerDisplay(_currentTime);
         }
 

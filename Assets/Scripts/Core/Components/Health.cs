@@ -3,17 +3,17 @@ using Core.Settings;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using UnityEngine;
-using UI.Health; // Ссылка на наш HealthBarController
+using UI.HUD.HealthBar;
 
 namespace Core.Components
 {
     public class Health : NetworkBehaviour, IDamageable
     {
         // === FishNet SyncVar ===
-        public readonly SyncVar<float> CurrentHealth = new SyncVar<float>();
+        private readonly SyncVar<float> CurrentHealth;
 
         [Header("Settings")]
-        [SerializeField] private float _initialHealth = 100f;
+        [SerializeField] private float initialHealth = 100f;
         [SerializeField] private float maxHealth = 100f;
         
         // Свойство для доступа
@@ -36,10 +36,9 @@ namespace Core.Components
         {
             CurrentHealth.OnChange += OnHealthChanged;
 
-            if (maxHealth <= 0) maxHealth = _initialHealth;
+            if (maxHealth <= 0) maxHealth = initialHealth;
             
-            // Локальная инициализация
-            CurrentHealth.Value = _initialHealth;
+            CurrentHealth.Value = initialHealth;
         }
 
         private void OnEnable()
@@ -80,8 +79,8 @@ namespace Core.Components
 
             if (healthBarPrefab != null)
             {
-                GameObject healthBarGO = Instantiate(healthBarPrefab);
-                _healthBarController = healthBarGO.GetComponent<HealthBarController>();
+                GameObject healthBarGo = Instantiate(healthBarPrefab);
+                _healthBarController = healthBarGo.GetComponent<HealthBarController>();
                 
                 if (_healthBarController != null)
                 {
@@ -120,8 +119,8 @@ namespace Core.Components
             float newVal = Mathf.Clamp(CurrentHealth.Value - damage, 0f, MaxHealth);
             CurrentHealth.Value = newVal;
 
-            NetworkObject attackerNO = attacker != null ? attacker.GetComponent<NetworkObject>() : null;
-            ObserversRpc_OnDamaged(attackerNO);
+            NetworkObject attackerNo = attacker != null ? attacker.GetComponent<NetworkObject>() : null;
+            ObserversRpc_OnDamaged(attackerNo);
 
             if (CurrentHealth.Value <= 0f)
             {
@@ -131,9 +130,9 @@ namespace Core.Components
         }
 
         [ObserversRpc]
-        private void ObserversRpc_OnDamaged(NetworkObject attackerNO)
+        private void ObserversRpc_OnDamaged(NetworkObject attackerNo)
         {
-            Transform attackerTransform = attackerNO != null ? attackerNO.transform : null;
+            Transform attackerTransform = attackerNo != null ? attackerNo.transform : null;
             OnDamaged?.Invoke(attackerTransform);
         }
 
@@ -194,9 +193,7 @@ namespace Core.Components
         }
         
         public float GetHealth() => CurrentHealth.Value;
-
-        // === ИСПРАВЛЕНИЕ ОШИБКИ ===
-        // Добавлен метод GetMaxHealth(), который требуют LifeFruit и RespawnManager
+        
         public float GetMaxHealth() => MaxHealth;
     }
 }

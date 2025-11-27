@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Player.Components;
+using UnityEngine.InputSystem;
 
 namespace Core.Settings
 {
@@ -14,9 +15,8 @@ namespace Core.Settings
 
         [Header("Настройки возрождения")]
         public float respawnDelay = 3f;
-
-        // Разрешение на респаун по clientId
-        private static readonly Dictionary<int, bool> _respawnAllowed = new Dictionary<int, bool>();
+        
+        private static readonly Dictionary<int, bool> _respawnAllowed;
 
 
         private void Awake()
@@ -48,7 +48,7 @@ namespace Core.Settings
             Debug.Log($"[Server] RespawnManager: SetRespawnEnabled(Client {clientId}, {enabled})");
         }
 
-        public static bool IsRespawnAllowed(int clientId)
+        private static bool IsRespawnAllowed(int clientId)
         {
             if (!_respawnAllowed.ContainsKey(clientId))
                 _respawnAllowed[clientId] = true;
@@ -101,9 +101,9 @@ namespace Core.Settings
             // ============================
             // 1. Отключаем CharacterController
             // ============================
-            var controller = deadPlayer.GetComponent<CharacterController>();
-            if (controller != null)
-                controller.enabled = false;
+            var playerInput = deadPlayer.GetComponent<PlayerInput>();
+            if (playerInput != null)
+                playerInput.enabled = false;
 
 
             // ============================
@@ -129,8 +129,8 @@ namespace Core.Settings
             // ============================
             // 4. Включаем CharacterController
             // ============================
-            if (controller != null)
-                controller.enabled = true;
+            if (playerInput != null)
+                playerInput.enabled = true;
 
 
             // ============================

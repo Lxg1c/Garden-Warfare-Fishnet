@@ -1,4 +1,3 @@
-using FishNet;
 using FishNet.Connection;
 using FishNet.Object;
 using System.Collections.Generic;

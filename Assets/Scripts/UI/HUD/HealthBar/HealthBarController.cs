@@ -1,11 +1,9 @@
-﻿using Core.Components;
-using FishNet.Object; // Для доступа к NetworkObject
+﻿using FishNet.Object;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
-using FischlWorks_FogWar; // Не забудьте этот namespace
 
-namespace UI.Health
+namespace UI.HUD.HealthBar
 {
     public class HealthBarController : MonoBehaviour
     {
@@ -27,159 +25,97 @@ namespace UI.Health
 
         [Header("Positioning")]
         [SerializeField] private float verticalOffset = 1.5f;
-        [SerializeField] private float zOffset = 0f;
+        [SerializeField] private float zOffset;
 
-        private Core.Components.Health targetHealth;
-        private Camera mainCamera;
-        private Coroutine damageOverlayCoroutine;
-
-        // Поля для тумана
-        private csFogVisibilityAgent csFogVisibilityAgent;
+        private Core.Components.Health _targetHealth;
+        private Camera _mainCamera;
+        private Coroutine _damageOverlayCoroutine;
 
         public void Initialize(Core.Components.Health healthComponent)
         {
-            targetHealth = healthComponent;
-            mainCamera = Camera.main;
+            if (healthComponent == null)
+            {
+                Debug.LogError("Health component is null in HealthBarController!");
+                return;
+            }
 
-            // Попытка найти компонент тумана на цели
-            if (targetHealth != null)
-                csFogVisibilityAgent = targetHealth.GetComponent<csFogVisibilityAgent>();
-
-            // --- ПРОВЕРКА FishNet: Цвет рамки для МОЕГО ИГРОКА ---
+            _targetHealth = healthComponent;
+            _mainCamera = Camera.main;
+            
             bool isLocalPlayerCharacter = false;
-
-            if (targetHealth != null)
+            var networkObject = _targetHealth.GetComponent<NetworkObject>();
+            if (networkObject != null && networkObject.IsOwner && _targetHealth.CompareTag(playerTag))
             {
-                // Если Health это NetworkBehaviour, можно проверить IsOwner
-                // Или проверяем через NetworkObject
-                var no = targetHealth.GetComponent<NetworkObject>();
-                if (no != null && no.IsOwner && targetHealth.CompareTag(playerTag))
-                {
-                    isLocalPlayerCharacter = true;
-                }
+                isLocalPlayerCharacter = true;
+            }
+            
+            if (borderImage != null)
+            {
+                borderImage.color = isLocalPlayerCharacter ? friendlyBorderColor : enemyBorderColor;
             }
 
-            if (isLocalPlayerCharacter)
-            {
-                if (borderImage != null) borderImage.color = friendlyBorderColor;
-            }
-            else
-            {
-                if (borderImage != null) borderImage.color = enemyBorderColor;
-            }
-
-            // Применение прозрачности
             SetAlpha(healthBarAlpha);
-
-            // Инициализируем полоску
-            UpdateHealthBar(targetHealth.GetHealth(), targetHealth.MaxHealth);
-        }
-
-        private void OnDestroy()
-        {
-            // Очистка не требуется
+            
+            UpdateHealthBar(_targetHealth.GetHealth(), _targetHealth.MaxHealth);
         }
 
         private void Update()
         {
-            if (targetHealth == null || mainCamera == null) return;
+            if (_targetHealth == null || _mainCamera == null) 
+            {
+                if (_targetHealth == null)
+                {
+                    Destroy(gameObject);
+                }
+                return;
+            }
 
-            // Позиция над объектом
-            Vector3 targetPosition = targetHealth.transform.position + Vector3.up * verticalOffset;
+            Vector3 targetPosition = _targetHealth.transform.position + Vector3.up * verticalOffset;
             transform.position = targetPosition;
-
-            // --- Вращение только по X ---
-            Vector3 cameraEuler = mainCamera.transform.rotation.eulerAngles;
+            
+            Vector3 cameraEuler = _mainCamera.transform.rotation.eulerAngles;
             transform.rotation = Quaternion.Euler(cameraEuler.x, 0f, 0f);
-
-            // --- Смещение по Z ---
+            
             transform.position += transform.forward * zOffset;
         }
 
-        // Логика Тумана Войны
-        private void FixedUpdate()
-        {
-            // Если цель мертва или ссылок нет, выходим
-            if (targetHealth == null) return;
-
-            //  ПОЧЕМУ ОНО НЕ РАБОТАЕТ ОООАОАОААООА
-            //// Если здоровье <= 0, бар скрыт всегда
-            //if (targetHealth.GetHealth() <= 0)
-            //{
-            //    SetVisibility(false);
-            //    return;
-            //}
-
-            //// Если есть агент тумана, проверяем видимость
-            //if (csFogVisibilityAgent != null)
-            //{
-            //    bool isVisibleInFog = csFogVisibilityAgent.GetVisibility();
-            //    SetVisibility(isVisibleInFog);
-            //}
-            //else
-            //{
-            //    // Если тумана нет, бар всегда виден (пока живо существо)
-            //    SetVisibility(true);
-            //}
-        }
-
-        private void SetVisibility(bool visible)
-        {
-            if (gameObject.activeSelf != visible)
-            {
-                gameObject.SetActive(visible);
-            }
-        }
-
-        // Этот метод вызывается из Health.OnHealthChanged
         public void UpdateHealthBar(float currentHealth, float maxHealth)
         {
-            float healthRatio = 0f;
-            if (maxHealth > 0)
-                healthRatio = currentHealth / maxHealth;
+            if (healthFillImage == null) return;
 
-            if (healthFillImage != null)
-                healthFillImage.fillAmount = healthRatio;
-
-            if (damageOverlayImage != null)
+            float healthRatio = maxHealth > 0 ? currentHealth / maxHealth : 0f;
+            healthFillImage.fillAmount = healthRatio;
+            
+            if (damageOverlayImage != null && gameObject.activeInHierarchy)
             {
-                // === ИСПРАВЛЕНИЕ ОШИБКИ ===
-                // Мы не можем запустить Coroutine, если объект выключен (например, скрыт туманом).
-                if (gameObject.activeInHierarchy)
+                if (_damageOverlayCoroutine != null)
                 {
-                    // Если объект активен - запускаем красивую анимацию
-                    if (damageOverlayCoroutine != null)
-                    {
-                        StopCoroutine(damageOverlayCoroutine);
-                    }
-                    damageOverlayCoroutine = StartCoroutine(AnimateDamageOverlay(healthRatio));
+                    StopCoroutine(_damageOverlayCoroutine);
                 }
-                else
-                {
-                    // Если объект выключен - просто меняем значение мгновенно,
-                    // чтобы когда он стал видимым, полоска была правильной.
-                    damageOverlayImage.fillAmount = healthRatio;
-                }
+                _damageOverlayCoroutine = StartCoroutine(AnimateDamageOverlay(healthRatio));
+            }
+            else if (damageOverlayImage != null)
+            {
+                damageOverlayImage.fillAmount = healthRatio;
             }
         }
 
         private IEnumerator AnimateDamageOverlay(float targetFillAmount)
         {
-            if (damageOverlayImage != null && healthFillImage != null)
+            if (damageOverlayImage == null || healthFillImage == null) yield break;
+            
+            damageOverlayImage.fillAmount = Mathf.Max(damageOverlayImage.fillAmount, healthFillImage.fillAmount);
+            
+            yield return new WaitForSeconds(damageOverlayDelay);
+            
+            while (damageOverlayImage.fillAmount > targetFillAmount)
             {
-                damageOverlayImage.fillAmount = Mathf.Max(damageOverlayImage.fillAmount, healthFillImage.fillAmount);
-
-                yield return new WaitForSeconds(damageOverlayDelay);
-
-                while (damageOverlayImage.fillAmount > targetFillAmount)
+                damageOverlayImage.fillAmount -= Time.deltaTime * damageOverlaySpeed;
+                if (damageOverlayImage.fillAmount < targetFillAmount)
                 {
-                    damageOverlayImage.fillAmount -= Time.deltaTime * damageOverlaySpeed;
-                    if (damageOverlayImage.fillAmount < targetFillAmount)
-                    {
-                        damageOverlayImage.fillAmount = targetFillAmount;
-                    }
-                    yield return null;
+                    damageOverlayImage.fillAmount = targetFillAmount;
                 }
+                yield return null;
             }
         }
 
@@ -198,6 +134,14 @@ namespace UI.Health
                 Color color = img.color;
                 color.a = alpha;
                 img.color = color;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_damageOverlayCoroutine != null)
+            {
+                StopCoroutine(_damageOverlayCoroutine);
             }
         }
     }

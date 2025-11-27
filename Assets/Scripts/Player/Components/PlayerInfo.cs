@@ -26,7 +26,7 @@ namespace Player.Components
         {
             base.OnStartClient();
 
-            if (base.IsOwner)
+            if (IsOwner)
             {
                 gameObject.name = $"Player_{ActorNumber.Value} (Me)";
             }
@@ -35,7 +35,7 @@ namespace Player.Components
         private void OnActorNumberChanged(int oldVal, int newVal, bool asServer)
         {
             Debug.Log($"[PlayerInfo] ID изменен: {oldVal} -> {newVal}");
-            gameObject.name = $"Player_{newVal} {(base.IsOwner ? "(Me)" : "")}";
+            gameObject.name = $"Player_{newVal} {(IsOwner ? "(Me)" : "")}";
         }
 
         // ------------------------------------------

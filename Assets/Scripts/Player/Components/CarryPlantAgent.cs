@@ -22,9 +22,8 @@ namespace Player.Components
         public void PickupPlant(Plant plant)
         {
             if (IsCarrying) return;
-            if (!base.IsOwner) return; // Только владелец может инициировать действие
-
-            // Отправляем запрос на сервер, передавая NetworkObject растения
+            if (!IsOwner) return;
+            
             NetworkObject plantNO = plant.GetComponent<NetworkObject>();
             if (plantNO != null)
             {
@@ -35,7 +34,7 @@ namespace Player.Components
         public void DropPlant()
         {
             if (!IsCarrying) return;
-            if (!base.IsOwner) return;
+            if (!IsOwner) return;
 
             ServerDropPlant();
         }
@@ -43,7 +42,7 @@ namespace Player.Components
         public bool PlacePlant(Vector3 position, Quaternion rotation)
         {
             if (!IsCarrying) return false;
-            if (!base.IsOwner) return false;
+            if (!IsOwner) return false;
 
             ServerPlacePlant(position, rotation);
             return true;

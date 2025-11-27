@@ -11,7 +11,7 @@ using System.Net;
 public class LanConnectionManager : MonoBehaviour
 {
     [Header("Настройки")]
-    public string gameSceneName = "GameScene"; // Убедитесь, что имя совпадает с Build Settings
+    public string gameSceneName = "GameScene";
     public float searchTimeout = 1.0f;
 
     [Header("Ссылки на UI")]
@@ -23,7 +23,7 @@ public class LanConnectionManager : MonoBehaviour
     private NetworkDiscovery _networkDiscovery;
     private Tugboat _tugboat;
 
-    private bool _isConnecting = false;
+    private bool _isConnecting;
 
     private void Start()
     {
