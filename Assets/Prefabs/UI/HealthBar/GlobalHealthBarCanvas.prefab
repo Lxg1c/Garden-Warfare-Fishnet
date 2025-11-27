@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1334689767736751816}
   - component: {fileID: 3217549011645422620}
   - component: {fileID: 7069408304068498840}
-  - component: {fileID: 3217839891412723812}
+  - component: {fileID: 6646567794859780006}
   m_Layer: 5
   m_Name: GlobalHealthBarCanvas
   m_TagString: Untagged
@@ -29,7 +29,7 @@ RectTransform:
   m_GameObject: {fileID: 1605861487293937988}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.01, y: 0.008, z: 0.01}
+  m_LocalScale: {x: 0.01, y: 0.005, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 819757119417596584}
@@ -104,7 +104,7 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &3217839891412723812
+--- !u!114 &6646567794859780006
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -113,9 +113,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1605861487293937988}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af5c1009ca8637b438e12928fd41c2e5, type: 3}
+  m_Script: {fileID: 11500000, guid: 8f010699e9ed4c0ea2608db5dc70cce8, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::HealthBarController
+  m_EditorClassIdentifier: Assembly-CSharp::UI.Health.HealthBarController
   healthFillImage: {fileID: 4612658497770382481}
   damageOverlayImage: {fileID: 2088761467549856269}
   borderImage: {fileID: 7899481447442108771}
@@ -125,7 +125,7 @@ MonoBehaviour:
   friendlyBorderColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   enemyBorderColor: {r: 0, g: 0, b: 0, a: 1}
   playerTag: Player
-  healthBarAlpha: 0.5
+  healthBarAlpha: 0.7
   verticalOffset: 4
   zOffset: 1.5
 --- !u!1 &2611706692438521281

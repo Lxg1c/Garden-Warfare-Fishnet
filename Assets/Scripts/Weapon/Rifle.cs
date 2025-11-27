@@ -1,34 +1,22 @@
 ﻿using UnityEngine;
-using Weapon.Types;
+using Weapon.Base;
 
-namespace Weapon
+namespace Weapon.Types
 {
     public class Rifle : RangedWeapon
     {
+        [Header("Rifle Settings")]
         public GameObject bulletPrefab;
         public Transform shootPoint;
-        public float bulletForce = 1f;
+        public float bulletForce = 20f;
+
+        // Use() наследуется от RangedWeapon (просто сброс таймера)
 
         public override void UseLocal()
         {
-            if (!MarkRangedUse()) return;
-
-            Debug.Log("Rifle fired locally!");
-        }
-
-        public override void ReloadLocal()
-        {
-            Debug.Log($"Reloading {weaponName}");
-        }
-
-        public override void Reload()
-        {
-            currentAmmo = maxAmmo;
-        }
-
-        public override bool CanReload()
-        {
-            return currentAmmo < maxAmmo;
+            // Визуальные эффекты выстрела
+            // AudioSource.PlayOneShot(shootSound);
+            // Debug.Log($"[Client] Bang! {weaponName} fired.");
         }
     }
 }

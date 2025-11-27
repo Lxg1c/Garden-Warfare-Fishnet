@@ -1,175 +1,202 @@
-﻿using FishNet.Object;
+﻿using Core.Interfaces;
+using Core.Settings;
+using FishNet.Object;
+using FishNet.Object.Synchronizing;
 using UnityEngine;
-using UnityEngine.Events;
+using UI.Health; // Ссылка на наш HealthBarController
 
 namespace Core.Components
 {
-    public class Health : NetworkBehaviour
+    public class Health : NetworkBehaviour, IDamageable
     {
-        [Header("Health Settings")]
+        // === FishNet SyncVar ===
+        public readonly SyncVar<float> CurrentHealth = new SyncVar<float>();
+
+        [Header("Settings")]
+        [SerializeField] private float _initialHealth = 100f;
         [SerializeField] private float maxHealth = 100f;
-        [SerializeField] private bool destroyOnDeath = true;
-
-        [Header("Events")]
-        public UnityEvent<float, NetworkObject> onDamageTakenBy;
-        public UnityEvent onDamageTaken;
-        public UnityEvent onHealed;
-        public UnityEvent onDeath;
-        public UnityEvent<float> onHealthChanged;
-
-        private float _currentHealth;
-        private bool _isDead;
-
-        public float CurrentHealth => _currentHealth;
+        
+        // Свойство для доступа
         public float MaxHealth => maxHealth;
-        public bool IsDead => _isDead;
-        public float HealthPercentage => _currentHealth / maxHealth;
+
+        [Header("UI Settings")]
+        [Tooltip("Перетащите сюда префаб HealthBarCanvas")]
+        [SerializeField] private GameObject healthBarPrefab; 
+        
+        private HealthBarController _healthBarController;
+
+        // Events
+        public delegate void DamageEvent(Transform attacker);
+        public event DamageEvent OnDamaged;
+
+        public delegate void DeathEvent(Transform deadTransform);
+        public event DeathEvent OnDeath;
+
+        private void Awake()
+        {
+            CurrentHealth.OnChange += OnHealthChanged;
+
+            if (maxHealth <= 0) maxHealth = _initialHealth;
+            
+            // Локальная инициализация
+            CurrentHealth.Value = _initialHealth;
+        }
+
+        private void OnEnable()
+        {
+                InitializeHealthBar();
+        }
+
+        private void OnDestroy()
+        {
+            CurrentHealth.OnChange -= OnHealthChanged;
+        }
 
         public override void OnStartNetwork()
         {
             base.OnStartNetwork();
+            InitializeHealthBar();
+        }
 
-            if (IsServerInitialized)
+        public override void OnStopNetwork()
+        {
+            base.OnStopNetwork();
+            if (_healthBarController != null)
             {
-                InitializeHealth();
+                Destroy(_healthBarController.gameObject);
             }
         }
 
-        [Server]
-        private void InitializeHealth()
+        /// <summary>
+        /// Создает Health Bar из префаба (Ручная настройка через Инспектор)
+        /// </summary>
+        public void InitializeHealthBar()
         {
-            _currentHealth = maxHealth;
-            _isDead = false;
+            if (_healthBarController != null)
+            {
+                Destroy(_healthBarController.gameObject);
+                _healthBarController = null;
+            }
+
+            if (healthBarPrefab != null)
+            {
+                GameObject healthBarGO = Instantiate(healthBarPrefab);
+                _healthBarController = healthBarGO.GetComponent<HealthBarController>();
+                
+                if (_healthBarController != null)
+                {
+                    // Вручную инициализируем контроллер
+                    _healthBarController.Initialize(this);
+                    // Обновляем значения сразу
+                    _healthBarController.UpdateHealthBar(CurrentHealth.Value, maxHealth);
+                }
+                else
+                {
+                    Debug.LogError("HealthBarPrefab does not have a HealthBarController component!");
+                }
+            }
+            else
+            {
+                Debug.LogWarning($"HealthBarPrefab is not assigned for {name}.");
+            }
         }
 
-        // ------------ Public RPC API ----------------
-
-        [ServerRpc(RequireOwnership = false)]
-        public void TakeDamageServerRpc(float damage, NetworkObject attacker = null)
+        // -----------------------
+        // Сетевая логика
+        // -----------------------
+        public void TakeDamage(float amount, Transform attacker = null)
         {
-            if (_isDead || damage <= 0) return;
-            TakeDamageInternal(damage, attacker);
+            if (IsServerInitialized)
+            {
+                int dmgToSend = Mathf.CeilToInt(amount);
+                ApplyDamage(dmgToSend, attacker);
+            }
         }
-
-        [ServerRpc(RequireOwnership = false)]
-        public void HealServerRpc(float healAmount)
+        
+        private void ApplyDamage(int damage, Transform attacker)
         {
-            if (_isDead || healAmount <= 0) return;
-            HealInternal(healAmount);
-        }
+            if (CurrentHealth.Value <= 0f) return;
 
-        [ServerRpc(RequireOwnership = false)]
-        public void SetHealthServerRpc(float newHealth)
-        {
-            newHealth = Mathf.Clamp(newHealth, 0, maxHealth);
-            _currentHealth = newHealth;
-            HealthChangedObserversRpc(_currentHealth);
+            float newVal = Mathf.Clamp(CurrentHealth.Value - damage, 0f, MaxHealth);
+            CurrentHealth.Value = newVal;
 
-            if (_currentHealth <= 0 && !_isDead)
+            NetworkObject attackerNO = attacker != null ? attacker.GetComponent<NetworkObject>() : null;
+            ObserversRpc_OnDamaged(attackerNO);
+
+            if (CurrentHealth.Value <= 0f)
+            {
                 Die();
+                ObserversRpc_OnDeath();
+            }
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        public void RestoreHealthServerRpc()
+        [ObserversRpc]
+        private void ObserversRpc_OnDamaged(NetworkObject attackerNO)
         {
-            _currentHealth = maxHealth;
-            _isDead = false;
-            HealthChangedObserversRpc(_currentHealth);
+            Transform attackerTransform = attackerNO != null ? attackerNO.transform : null;
+            OnDamaged?.Invoke(attackerTransform);
         }
 
-        [ServerRpc(RequireOwnership = false)]
-        public void KillServerRpc()
+        [ObserversRpc]
+        private void ObserversRpc_OnDeath()
         {
-            if (_isDead) return;
-            TakeDamageInternal(_currentHealth, null);
+            OnDeath?.Invoke(transform);
+            
+            if (_healthBarController != null)
+            {
+                Destroy(_healthBarController.gameObject);
+                _healthBarController = null;
+            }
+            
+            gameObject.SetActive(false);
         }
 
-        // ------------ Internal Logic ------------
-
-        [Server]
-        private void TakeDamageInternal(float damage, NetworkObject attacker)
-        {
-            _currentHealth = Mathf.Max(0, _currentHealth - damage);
-
-            DamageTakenObserversRpc(damage, attacker);
-
-            if (_currentHealth <= 0 && !_isDead)
-                Die();
-        }
-
-        [Server]
-        private void HealInternal(float healAmount)
-        {
-            _currentHealth = Mathf.Min(maxHealth, _currentHealth + healAmount);
-            HealedObserversRpc();
-        }
-
-        [Server]
         private void Die()
         {
-            _isDead = true;
-            DeathObserversRpc();
-
-            if (destroyOnDeath)
-                Invoke(nameof(DestroyObject), 2f);
+            var respawn = FindFirstObjectByType<RespawnManager>();
+            if (respawn != null)
+                respawn.StartRespawn(gameObject);
+            else
+                Debug.LogWarning("RespawnManager not found.");
         }
 
-        [Server]
-        private void DestroyObject()
+        private void OnHealthChanged(float oldVal, float newVal, bool asServer)
         {
-            if (NetworkObject != null)
-                NetworkObject.Despawn();
+            if (_healthBarController != null)
+            {
+                _healthBarController.UpdateHealthBar(newVal, MaxHealth);
+            }
         }
 
-        // -------- Observers RPC Events --------
-
-        [ObserversRpc]
-        private void DamageTakenObserversRpc(float damage, NetworkObject attacker)
+        public void SetHealthBarController(HealthBarController controller)
         {
-            onDamageTaken?.Invoke();
-            onDamageTakenBy?.Invoke(damage, attacker);
-            onHealthChanged?.Invoke(_currentHealth);
+            _healthBarController = controller;
+            _healthBarController.UpdateHealthBar(CurrentHealth.Value, MaxHealth);
         }
 
-        [ObserversRpc]
-        private void HealedObserversRpc()
+        // -----------------------
+        // Public API
+        // -----------------------
+        public void SetHealth(float newHealth)
         {
-            onHealed?.Invoke();
-            onHealthChanged?.Invoke(_currentHealth);
+            if (IsServerInitialized)
+            {
+                CurrentHealth.Value = Mathf.Clamp(newHealth, 0f, MaxHealth);
+            }
         }
 
-        [ObserversRpc]
-        private void DeathObserversRpc()
+        public void Heal(float amount)
         {
-            onDeath?.Invoke();
-            onHealthChanged?.Invoke(0);
+            if (IsServerInitialized)
+            {
+                SetHealth(CurrentHealth.Value + amount);
+            }
         }
+        
+        public float GetHealth() => CurrentHealth.Value;
 
-        [ObserversRpc]
-        private void HealthChangedObserversRpc(float newHealth)
-        {
-            onHealthChanged?.Invoke(newHealth);
-        }
-
-        // --------- Utility Methods ---------
-
-        public bool IsAlive() => !_isDead && _currentHealth > 0;
-        public float GetHealthPercentage() => HealthPercentage;
-
-        [Server]
-        public void SetMaxHealth(float newMaxHealth)
-        {
-            maxHealth = newMaxHealth;
-            _currentHealth = Mathf.Min(_currentHealth, maxHealth);
-            HealthChangedObserversRpc(_currentHealth);
-        }
-
-        [Server]
-        public void Respawn()
-        {
-            _currentHealth = maxHealth;
-            _isDead = false;
-            HealedObserversRpc();
-        }
+        // === ИСПРАВЛЕНИЕ ОШИБКИ ===
+        // Добавлен метод GetMaxHealth(), который требуют LifeFruit и RespawnManager
+        public float GetMaxHealth() => MaxHealth;
     }
 }
