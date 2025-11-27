@@ -29,12 +29,16 @@ namespace Weapon.Projectile
 
         public override void OnStartServer()
         {
+            base.OnStartServer(); // Хорошая практика вызывать base
             _rb = GetComponent<Rigidbody>();
             Invoke(nameof(DespawnBullet), lifetime);
         }
 
         private void FixedUpdate()
         {
+            // Пуля двигается только на сервере (если это серверная пуля)
+            // Если вы хотите, чтобы клиенты тоже видели плавное движение, 
+            // пуле нужен компонент NetworkTransform или NetworkTransform(Predicted)
             if (!IsServerInitialized) return;
 
             _rb.MovePosition(transform.position + transform.forward * speed * Time.fixedDeltaTime);
@@ -42,11 +46,19 @@ namespace Weapon.Projectile
 
         private void OnTriggerEnter(Collider other)
         {
+            // Обработка столкновений только на сервере
             if (!IsServerInitialized) return;
+
+            // Игнорируем столкновение с владельцем пули
             if (_owner != null && other.transform == _owner) return;
 
             if (other.TryGetComponent(out Health hp))
-                hp.TakeDamageServerRpc(damage, NetworkObject);
+            {
+                // ИСПРАВЛЕНИЕ:
+                // 1. Метод называется TakeDamage.
+                // 2. Вторым аргументом передаем _owner (Transform), чтобы Health знал, кто атаковал.
+                hp.TakeDamage(damage, _owner);
+            }
 
             DespawnBullet();
         }
@@ -54,7 +66,8 @@ namespace Weapon.Projectile
         [Server]
         private void DespawnBullet()
         {
-            if (NetworkObject != null)
+            // Проверка на null нужна, так как объект мог быть уже уничтожен
+            if (NetworkObject != null && NetworkObject.IsSpawned)
                 NetworkObject.Despawn();
         }
     }

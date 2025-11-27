@@ -1,11 +1,11 @@
 ﻿namespace Weapon.Interfaces
 {
-    /// <summary>
-    /// Интерфейс для оружия, которое может перезаряжаться.
-    /// </summary>
     public interface IReloadable
     {
+        // Логика сервера (восстановить число int ammo)
         void Reload();
-        bool CanReload();
+
+        // Логика клиента (проиграть звук/анимацию)
+        void ReloadLocal();
     }
 }

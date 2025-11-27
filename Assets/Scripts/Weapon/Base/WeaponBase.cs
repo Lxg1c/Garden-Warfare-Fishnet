@@ -1,4 +1,4 @@
-п»їusing UnityEngine;
+using UnityEngine;
 
 namespace Weapon.Base
 {
@@ -15,9 +15,10 @@ namespace Weapon.Base
 
         protected void MarkUse() => _nextUseTime = Time.time + useRate;
 
-        /// <summary>
-        /// Р›РѕРєР°Р»СЊРЅР°СЏ Р»РѕРіРёРєР° РёСЃРїРѕР»СЊР·РѕРІР°РЅРёСЏ (РЅРµ СЃРµС‚СЊ!)
-        /// </summary>
+        // Логика сервера (патроны, таймеры)
+        public abstract void Use();
+
+        // Логика клиента (визуал)
         public abstract void UseLocal();
     }
 }

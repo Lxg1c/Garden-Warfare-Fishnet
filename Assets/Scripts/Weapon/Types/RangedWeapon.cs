@@ -1,36 +1,24 @@
 ﻿using UnityEngine;
-using Weapon.Base;
-using Weapon.Interfaces;
+// using Weapon.Interfaces; // IReloadable больше не нужен
 
-namespace Weapon.Types
+namespace Weapon.Base
 {
-    public abstract class RangedWeapon : WeaponBase, IReloadable
+    /// <summary>
+    /// Базовый класс для дальнобойного оружия.
+    /// Теперь просто наследует логику таймера, патроны вырезаны.
+    /// </summary>
+    public abstract class RangedWeapon : WeaponBase
     {
-        [Header("Ranged Weapon Settings")]
-        [SerializeField] protected int maxAmmo = 30;
-        [SerializeField] protected int currentAmmo = 30;
-
-        private float _lastFireTime;
-
         public override bool CanUse()
         {
-            return currentAmmo > 0 && 
-                   Time.time >= _lastFireTime + useRate;
+            // Просто возвращаем проверку таймера из базы
+            return base.CanUse();
         }
 
-        protected bool MarkRangedUse()
+        public override void Use()
         {
-            if (!CanUse()) return false;
-
-            currentAmmo--;
-            _lastFireTime = Time.time;
-
-            return true;
+            // Просто обновляем таймер стрельбы
+            MarkUse();
         }
-
-        public abstract void Reload();
-        public abstract bool CanReload();
-
-        public abstract void ReloadLocal();
     }
 }
