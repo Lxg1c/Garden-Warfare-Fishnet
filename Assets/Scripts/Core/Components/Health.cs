@@ -10,7 +10,7 @@ namespace Core.Components
     public class Health : NetworkBehaviour, IDamageable
     {
         // === FishNet SyncVar ===
-        private readonly SyncVar<float> CurrentHealth;
+        private readonly SyncVar<float> CurrentHealth = new SyncVar<float>();
 
         [Header("Settings")]
         [SerializeField] private float initialHealth = 100f;
@@ -32,30 +32,32 @@ namespace Core.Components
         public delegate void DeathEvent(Transform deadTransform);
         public event DeathEvent OnDeath;
 
-        private void Awake()
-        {
-            CurrentHealth.OnChange += OnHealthChanged;
-
-            if (maxHealth <= 0) maxHealth = initialHealth;
-            
-            CurrentHealth.Value = initialHealth;
-        }
-
-        private void OnEnable()
-        {
-                InitializeHealthBar();
-        }
-
         private void OnDestroy()
         {
             CurrentHealth.OnChange -= OnHealthChanged;
         }
+        
+        public override void OnStartClient()
+        {
+            if (!IsOwner) return;
+            
+            base.OnStartClient();
+
+            CurrentHealth.OnChange += OnHealthChanged;
+
+            InitializeHealthBar();
+        }
+
 
         public override void OnStartNetwork()
         {
+            CurrentHealth.OnChange += OnHealthChanged;
+            if (maxHealth <= 0) maxHealth = initialHealth;
+
+            CurrentHealth.Value = initialHealth;
             base.OnStartNetwork();
-            InitializeHealthBar();
         }
+
 
         public override void OnStopNetwork()
         {
