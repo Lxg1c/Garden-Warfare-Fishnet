@@ -50,6 +50,11 @@ namespace FischlWorks_FogWar
             return visibility;
         }
 
+        public void SetFogWar(csFogWar newFogWar)
+        {
+            fogWar = newFogWar;
+        }
+
         private void Start()
         {
             // This part is meant to be modified following the project's scene structure later...

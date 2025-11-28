@@ -51,6 +51,7 @@ GameObject:
   - component: {fileID: 480752333207020003}
   - component: {fileID: 399024507637964627}
   - component: {fileID: 3894581489768568701}
+  - component: {fileID: 6540299870522062612}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -141,6 +142,7 @@ MonoBehaviour:
   gravityScale: 9.81
   normalSpeed: 8
   carrySpeed: 10
+  fogController: {fileID: 6540299870522062612}
 --- !u!114 &8326548913328295048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -297,6 +299,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   raycastFrameSkip: 1
+  playerVirtualCamera: {fileID: 9109304839181728778}
 --- !u!114 &9138598534050397542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -367,9 +370,22 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8326548913328295048}
   _networkObjectCache: {fileID: 0}
-  _initialHealth: 100
+  initialHealth: 100
   maxHealth: 100
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
+--- !u!114 &6540299870522062612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7c197175dca474188c0d96ca8748a1d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Core.Spawn.FogOfWarController
+  fogPrefab: {fileID: 7778140122842387689, guid: 39565cafc69995440b7906aa10aecaeb, type: 3}
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0

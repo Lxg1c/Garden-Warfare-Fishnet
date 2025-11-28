@@ -308,6 +308,11 @@ namespace FischlWorks_FogWar
             // This is needed because we do not update the fog when there's no unit-scale movement of each fogRevealer
             ForceUpdateFog();
         }
+        
+        public void SetLevelMidPoint(Transform midpoint)
+        {
+            levelMidPoint = midpoint;
+        }
 
 
 

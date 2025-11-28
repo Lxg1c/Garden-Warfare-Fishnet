@@ -1,3 +1,5 @@
+using Core.Spawn;
+using FischlWorks_FogWar;
 using UnityEngine;
 using FishNet.Object;
 using Player.Components;
@@ -22,6 +24,10 @@ namespace Player
 
         private CarryPlantAgent _carry;
         
+        // Fog of war
+        public FogOfWarController fogController;
+        private csFogVisibilityAgent _visibilityAgent;
+        
         // јнимации
         private float _animMoveX;
         private float _animMoveY;
@@ -37,6 +43,7 @@ namespace Player
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
             _carry = GetComponent<CarryPlantAgent>();
+            _visibilityAgent = GetComponent<csFogVisibilityAgent>();
             
             _moveXHash = Animator.StringToHash("moveX");
             _moveYHash = Animator.StringToHash("moveY");
@@ -47,15 +54,44 @@ namespace Player
             _playerInputActions.Player.Move.canceled += _ => _moveInput = Vector2.zero;
         }
 
+
         public override void OnStartClient()
         {
             base.OnStartClient();
+
             if (IsOwner)
             {
                 _playerInputActions.Enable();
-                Debug.Log("CLIENT: ”правление включено.");
+                
+                if (fogController == null)
+                {
+                    fogController = FindFirstObjectByType<FogOfWarController>();
+                }
+                
+                if (fogController != null)
+                {
+                    fogController.InitializeForPlayer(transform, 6);
+                    
+                    csFogWar fogInstance = fogController.GetFogInstance();
+                    if (fogInstance != null && _visibilityAgent != null)
+                    {
+                        _visibilityAgent.SetFogWar(fogInstance);
+                        Debug.Log("Fog of war instance set to visibility agent");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("Failed to set fog war to visibility agent");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("FogOfWarController not found!");
+                }
+
+                Debug.Log("CLIENT: ”правление включено + локальный FOW создан.");
             }
         }
+
 
         public override void OnStopClient()
         {
