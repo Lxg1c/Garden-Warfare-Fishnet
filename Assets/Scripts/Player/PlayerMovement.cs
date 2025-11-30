@@ -24,10 +24,6 @@ namespace Player
 
         private CarryPlantAgent _carry;
         
-        // Fog of war
-        public FogOfWarController fogController;
-        private csFogVisibilityAgent _visibilityAgent;
-        
         // Анимации
         private float _animMoveX;
         private float _animMoveY;
@@ -43,7 +39,6 @@ namespace Player
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
             _carry = GetComponent<CarryPlantAgent>();
-            _visibilityAgent = GetComponent<csFogVisibilityAgent>();
             
             _moveXHash = Animator.StringToHash("moveX");
             _moveYHash = Animator.StringToHash("moveY");
@@ -62,31 +57,6 @@ namespace Player
             if (IsOwner)
             {
                 _playerInputActions.Enable();
-                
-                if (fogController == null)
-                {
-                    fogController = FindFirstObjectByType<FogOfWarController>();
-                }
-                
-                if (fogController != null)
-                {
-                    fogController.InitializeForPlayer(transform, 6);
-                    
-                    csFogWar fogInstance = fogController.GetFogInstance();
-                    if (fogInstance != null && _visibilityAgent != null)
-                    {
-                        _visibilityAgent.SetFogWar(fogInstance);
-                        Debug.Log("Fog of war instance set to visibility agent");
-                    }
-                    else
-                    {
-                        Debug.LogWarning("Failed to set fog war to visibility agent");
-                    }
-                }
-                else
-                {
-                    Debug.LogError("FogOfWarController not found!");
-                }
 
                 Debug.Log("CLIENT: Управление включено + локальный FOW создан.");
             }

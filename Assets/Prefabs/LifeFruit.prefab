@@ -34,7 +34,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 1628324092242929528}
   m_Father: {fileID: 0}
@@ -72,7 +72,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 31321ba15b8f8eb4c954353edc038b1d, type: 2}
+  - {fileID: 2100000, guid: b0f9846a00432f346b073ca6faa86d1b, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -114,8 +114,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 2.280631, z: 1}
-  m_Center: {x: 0, y: 0.6403153, z: 0}
+  m_Size: {x: 1, y: 1.0107875, z: 1}
+  m_Center: {x: 0, y: 0.0053934753, z: 0}
 --- !u!114 &316923338794099611
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -146,9 +146,9 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 7982668873733477938}
   _networkObjectCache: {fileID: 0}
-  _initialHealth: 100
+  initialHealth: 100
   maxHealth: 100
-  healthBarPrefab: {fileID: 0}
+  healthBarPrefab: {fileID: 899114310084793384}
 --- !u!114 &7982668873733477938
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -217,7 +217,6 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 7982668873733477938}
   _networkObjectCache: {fileID: 0}
-  ownerIdDebug: -1
 --- !u!1001 &8625376269671990560
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -327,6 +326,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5ed98c644e8e3ca4e883607f112c2fd6, type: 3}
+--- !u!1 &899114310084793384 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8919719597464162568, guid: 5ed98c644e8e3ca4e883607f112c2fd6, type: 3}
+  m_PrefabInstance: {fileID: 8625376269671990560}
+  m_PrefabAsset: {fileID: 0}
 --- !u!224 &1628324092242929528 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 7001837547315503704, guid: 5ed98c644e8e3ca4e883607f112c2fd6, type: 3}

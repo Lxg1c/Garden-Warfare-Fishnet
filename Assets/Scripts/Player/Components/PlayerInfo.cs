@@ -6,7 +6,6 @@ namespace Player.Components
 {
     public class PlayerInfo : NetworkBehaviour
     {
-        // Используем SyncVar<int> вместо атрибута [SyncVar]
         public readonly SyncVar<int> ActorNumber = new SyncVar<int>();
 
         // Локальное свойство
@@ -44,14 +43,12 @@ namespace Player.Components
 
         public void SetActorNumber(int id)
         {
-            // ИСПРАВЛЕНИЕ: Используем IsServerInitialized вместо IsServer
             if (IsServerInitialized)
             {
                 ActorNumber.Value = id;
             }
             else
             {
-                // Если мы еще не на сервере или это клиент, логируем предупреждение
                 Debug.LogWarning("[PlayerInfo] Попытка изменить ActorNumber с клиента или до инициализации! Игнорируется.");
             }
         }
