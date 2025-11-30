@@ -69,9 +69,7 @@ namespace Gameplay
         
         private void ApplyFog(int playerId, csFogWar fog)
         {
-            // Этот фрукт принадлежит другому игроку — пропускаем
-            if (playerId != OwnerId)
-                return;
+            if (playerId != OwnerId) return;
 
             if (_visibilityAgent == null)
                 _visibilityAgent = GetComponent<csFogVisibilityAgent>();
@@ -79,10 +77,9 @@ namespace Gameplay
             if (_visibilityAgent != null)
             {
                 _visibilityAgent.SetFogWar(fog);
-
-                // Добавляем фрукт в revealers
+                
                 fog._FogRevealers.Add(
-                    new csFogWar.FogRevealer(transform, 4, true) // радиус подбери сам
+                    new csFogWar.FogRevealer(transform, 4, true)
                 );
 
                 Debug.Log($"[Client] LifeFruit({OwnerId}) added to fog revealers");

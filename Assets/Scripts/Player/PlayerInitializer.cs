@@ -22,10 +22,11 @@ namespace Player
         
         // Events
         public static event Action<int, csFogWar> OnPlayerFogReady;
-
-
+        
         public override void OnStartClient()
         {
+            if (!IsOwner) return;
+            
             base.OnStartClient();
 
             _defaultSpawnPoint = transform;
