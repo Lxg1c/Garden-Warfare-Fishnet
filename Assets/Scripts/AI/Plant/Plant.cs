@@ -1,27 +1,31 @@
 ﻿using FishNet.Object;
-using FishNet.Object.Synchronizing; // Обязательно для SyncVar<T>
+using FishNet.Object.Synchronizing;
 using UnityEngine;
 
 namespace AI.Plant
 {
+    [RequireComponent(typeof(Rigidbody))]
+    [RequireComponent(typeof(NetworkObject))]
     public class Plant : NetworkBehaviour
     {
         public enum State { Neutral, Carried, Placed }
 
-        // Используем SyncVar<State> вместо атрибута
         public readonly SyncVar<State> CurrentState = new SyncVar<State>();
+        public readonly SyncVar<int> OwnerActorNumber = new SyncVar<int>();
 
-        private Rigidbody rb;
-        private Collider col;
+        [Header("References")]
+        [SerializeField] private Rigidbody rb;
+        [SerializeField] private Collider col;
+        [SerializeField] private PlantTurret turret;
 
         public bool isActive => CurrentState.Value == State.Placed;
 
         private void Awake()
         {
-            rb = GetComponent<Rigidbody>();
-            col = GetComponent<Collider>();
+            if (rb == null) rb = GetComponent<Rigidbody>();
+            if (col == null) col = GetComponent<Collider>();
+            if (turret == null) turret = GetComponent<PlantTurret>();
 
-            // Подписываемся на изменение
             CurrentState.OnChange += OnStateChanged;
         }
 
@@ -30,65 +34,62 @@ namespace AI.Plant
             CurrentState.OnChange -= OnStateChanged;
         }
 
-        // Вызывается автоматически при изменении .Value
+        public override void OnStartNetwork()
+        {
+            base.OnStartNetwork();
+            OnStateChanged(State.Neutral, CurrentState.Value, false);
+        }
+
         private void OnStateChanged(State prev, State next, bool asServer)
         {
             switch (next)
             {
                 case State.Neutral:
-                    if (rb) rb.isKinematic = false;
+                    if (rb) { rb.isKinematic = false; rb.useGravity = true; }
                     if (col) col.enabled = true;
+                    if (turret) turret.enabled = false;
+                    transform.SetParent(null);
                     break;
 
                 case State.Carried:
-                    if (rb) rb.isKinematic = true;
+                    if (rb) { rb.isKinematic = true; rb.useGravity = false; }
                     if (col) col.enabled = false;
+                    if (turret) turret.enabled = false;
                     break;
 
                 case State.Placed:
-                    if (rb) rb.isKinematic = true;
+                    if (rb) { rb.isKinematic = true; rb.useGravity = false; }
                     if (col) col.enabled = true;
-                    // Активируем турель
-                    GetComponent<PlantTurret>()?.Activate();
+                    if (turret) turret.enabled = true;
+                    transform.SetParent(null);
                     break;
             }
         }
 
-        public override void OnStartNetwork()
-        {
-            base.OnStartNetwork();
-            // Применяем текущее состояние при входе в сеть
-            OnStateChanged(State.Neutral, CurrentState.Value, false);
-        }
-
-        // ---------------------------------------------
-        // Методы управления (ТОЛЬКО СЕРВЕР)
-        // ---------------------------------------------
+        // --- SERVER SIDE ---
 
         public void SetCarried(NetworkObject carrier)
         {
-            // ИСПРАВЛЕНИЕ: IsServer -> IsServerInitialized
             if (!IsServerInitialized) return;
-
             CurrentState.Value = State.Carried;
+            OwnerActorNumber.Value = -1;
         }
 
         public void Drop()
         {
-            // ИСПРАВЛЕНИЕ: IsServer -> IsServerInitialized
             if (!IsServerInitialized) return;
-
             CurrentState.Value = State.Neutral;
+            OwnerActorNumber.Value = -1;
         }
 
-        public void Place(Vector3 pos, float yRot)
+        public void Place(Vector3 pos, float yRot, int ownerId)
         {
-            // ИСПРАВЛЕНИЕ: IsServer -> IsServerInitialized
             if (!IsServerInitialized) return;
 
             transform.position = pos;
             transform.rotation = Quaternion.Euler(0, yRot, 0);
 
+            OwnerActorNumber.Value = ownerId;
             CurrentState.Value = State.Placed;
         }
     }

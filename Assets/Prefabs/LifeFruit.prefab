@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 4820671862503727381}
   - component: {fileID: 7982668873733477938}
   - component: {fileID: 277118366417487112}
+  - component: {fileID: 3137951313424652070}
   m_Layer: 0
   m_Name: LifeFruit
   m_TagString: Untagged
@@ -218,6 +219,19 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 7982668873733477938}
   _networkObjectCache: {fileID: 0}
   ownerIdDebug: -1
+--- !u!114 &3137951313424652070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3426391584002515046}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a53b9f39851444149b9d924a9bae15d9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Gameplay.BaseArea
+  radius: 10
 --- !u!1001 &8625376269671990560
 PrefabInstance:
   m_ObjectHideFlags: 0

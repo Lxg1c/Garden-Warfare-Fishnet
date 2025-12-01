@@ -47,7 +47,6 @@ namespace Weapon
             if (currentWeapon == null) return;
 
             HandleShooting();
-            // HandleReload() удален, так как патронов нет
         }
 
         private void HandleShooting()
@@ -82,8 +81,6 @@ namespace Weapon
             UseWeaponObserversRpc();
         }
 
-        // ReloadServerRpc удален
-
         /* =========================
          *     OBSERVERS RPCs
          * ========================= */
@@ -94,8 +91,6 @@ namespace Weapon
             if (currentWeapon != null)
                 currentWeapon.UseLocal();
         }
-
-        // ReloadObserversRpc удален
 
         /* =========================
          *     LOGIC
@@ -132,6 +127,19 @@ namespace Weapon
         public void SetWeaponEnabled(bool isEnabled)
         {
             _isEnabled = isEnabled;
+        }
+
+        // === ДОБАВЛЕНО: Управление видимостью оружия ===
+        /// <summary>
+        /// Скрывает или показывает модель оружия.
+        /// Вызывается из CarryPlantAgent при смене состояния переноски.
+        /// </summary>
+        public void ToggleWeaponVisuals(bool show)
+        {
+            if (currentWeapon != null)
+            {
+                currentWeapon.gameObject.SetActive(show);
+            }
         }
     }
 }
