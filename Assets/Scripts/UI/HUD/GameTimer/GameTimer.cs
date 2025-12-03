@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using FishNet.Object;
 using TMPro;
@@ -8,9 +9,14 @@ namespace UI.HUD.GameTimer
     {
         [SerializeField] private TMP_Text timerText;
         
+        
         private float _currentTime;
         private float _lastSyncTime;
         private const float SyncInterval = 0.5f;
+        
+        // Events
+        public static event Action<float> OnTimeChanged;
+
 
         public override void OnStartNetwork()
         {
@@ -28,16 +34,19 @@ namespace UI.HUD.GameTimer
             if (IsServerInitialized)
             {
                 _currentTime += Time.deltaTime;
-                
+
                 if (_currentTime - _lastSyncTime >= SyncInterval)
                 {
                     UpdateTimerObserversRpc(_currentTime);
                     _lastSyncTime = _currentTime;
                 }
             }
-            
+
+            OnTimeChanged?.Invoke(_currentTime);
+
             UpdateTimerDisplay(_currentTime);
         }
+
 
         [ObserversRpc]
         private void UpdateTimerObserversRpc(float time)

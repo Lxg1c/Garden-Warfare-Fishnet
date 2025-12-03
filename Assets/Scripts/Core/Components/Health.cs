@@ -9,14 +9,12 @@ namespace Core.Components
 {
     public class Health : NetworkBehaviour, IDamageable
     {
-        // === FishNet SyncVar ===
         private readonly SyncVar<float> CurrentHealth = new SyncVar<float>();
 
         [Header("Settings")]
         [SerializeField] private float initialHealth = 100f;
         [SerializeField] private float maxHealth = 100f;
         
-        // Свойство для доступа
         public float MaxHealth => maxHealth;
 
         [Header("UI Settings")]
@@ -48,7 +46,6 @@ namespace Core.Components
             InitializeHealthBar();
         }
 
-
         public override void OnStartNetwork()
         {
             CurrentHealth.OnChange += OnHealthChanged;
@@ -57,7 +54,6 @@ namespace Core.Components
             CurrentHealth.Value = initialHealth;
             base.OnStartNetwork();
         }
-
 
         public override void OnStopNetwork()
         {
@@ -86,9 +82,7 @@ namespace Core.Components
                 
                 if (_healthBarController != null)
                 {
-                    // Вручную инициализируем контроллер
                     _healthBarController.Initialize(this);
-                    // Обновляем значения сразу
                     _healthBarController.UpdateHealthBar(CurrentHealth.Value, maxHealth);
                 }
                 else
@@ -105,29 +99,33 @@ namespace Core.Components
         // -----------------------
         // Сетевая логика
         // -----------------------
-        public void TakeDamage(float amount, Transform attacker = null)
+        public void TakeDamage(float amount, Transform attacker = null, NetworkObject attackerNetworkObject = null)
         {
             if (IsServerInitialized)
             {
                 int dmgToSend = Mathf.CeilToInt(amount);
-                ApplyDamage(dmgToSend, attacker);
+        
+                // Используем NetworkObject если он передан, иначе пытаемся получить из Transform
+                NetworkObject noToSend = attackerNetworkObject ?? 
+                                         (attacker != null ? attacker.GetComponent<NetworkObject>() : null);
+        
+                ApplyDamage(dmgToSend, noToSend);
             }
         }
-        
-        private void ApplyDamage(int damage, Transform attacker)
+
+        private void ApplyDamage(int damage, NetworkObject attackerNo)
         {
             if (CurrentHealth.Value <= 0f) return;
 
             float newVal = Mathf.Clamp(CurrentHealth.Value - damage, 0f, MaxHealth);
             CurrentHealth.Value = newVal;
 
-            NetworkObject attackerNo = attacker != null ? attacker.GetComponent<NetworkObject>() : null;
             ObserversRpc_OnDamaged(attackerNo);
 
             if (CurrentHealth.Value <= 0f)
             {
-                Die();
-                ObserversRpc_OnDeath();
+                Transform attackerTransform = attackerNo != null ? attackerNo.transform : null;
+                Die(attackerTransform);
             }
         }
 
@@ -138,27 +136,56 @@ namespace Core.Components
             OnDamaged?.Invoke(attackerTransform);
         }
 
+        private void Die(Transform killer)
+        {
+            // Вызываем событие смерти на всех клиентах
+            ObserversRpc_OnDeath();
+            
+            // Только сервер уничтожает объект
+            if (IsServerInitialized)
+            {
+                // Проверяем, нужно ли респавнить
+                var respawn = FindFirstObjectByType<RespawnManager>();
+                if (respawn != null)
+                {
+                    respawn.StartRespawn(gameObject);
+                }
+                else
+                {
+                    // Если нет RespawnManager, просто уничтожаем
+                    NetworkObject netObj = GetComponent<NetworkObject>();
+                    if (netObj != null)
+                    {
+                        netObj.Despawn();
+                    }
+                    else
+                    {
+                        Destroy(gameObject);
+                    }
+                }
+            }
+        }
+
         [ObserversRpc]
         private void ObserversRpc_OnDeath()
         {
+            // Вызываем событие смерти
             OnDeath?.Invoke(transform);
             
+            // Уничтожаем HealthBar
             if (_healthBarController != null)
             {
                 Destroy(_healthBarController.gameObject);
                 _healthBarController = null;
             }
             
-            gameObject.SetActive(false);
-        }
-
-        private void Die()
-        {
-            var respawn = FindFirstObjectByType<RespawnManager>();
-            if (respawn != null)
-                respawn.StartRespawn(gameObject);
-            else
-                Debug.LogWarning("RespawnManager not found.");
+            // Отключаем визуал (опционально)
+            var renderer = GetComponent<Renderer>();
+            if (renderer != null) renderer.enabled = false;
+            var collider = GetComponent<Collider>();
+            if (collider != null) collider.enabled = false;
+            
+            // Не отключаем GameObject! Пусть Despawn сам обработает
         }
 
         private void OnHealthChanged(float oldVal, float newVal, bool asServer)

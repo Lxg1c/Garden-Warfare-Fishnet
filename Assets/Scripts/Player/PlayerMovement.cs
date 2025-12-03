@@ -1,8 +1,5 @@
-using Core.Spawn;
-using FischlWorks_FogWar;
 using UnityEngine;
 using FishNet.Object;
-using Player.Components;
 
 namespace Player
 {
@@ -21,8 +18,6 @@ namespace Player
 
         public float normalSpeed = 5f;
         public float carrySpeed = 3f;
-
-        private CarryPlantAgent _carry;
         
         // Анимации
         private float _animMoveX;
@@ -38,7 +33,6 @@ namespace Player
         {
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
-            _carry = GetComponent<CarryPlantAgent>();
             
             _moveXHash = Animator.StringToHash("moveX");
             _moveYHash = Animator.StringToHash("moveY");
@@ -57,8 +51,6 @@ namespace Player
             if (IsOwner)
             {
                 _playerInputActions.Enable();
-
-                Debug.Log("CLIENT: Управление включено + локальный FOW создан.");
             }
         }
 
@@ -87,7 +79,7 @@ namespace Player
                 Quaternion targetRotation = Quaternion.LookRotation(inputDir);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
 
-                float currentSpeed = (_carry != null && _carry.IsCarrying) ? carrySpeed : normalSpeed;
+                float currentSpeed = normalSpeed;
                 _characterController.Move(currentSpeed * Time.deltaTime * inputDir);
             }
         }

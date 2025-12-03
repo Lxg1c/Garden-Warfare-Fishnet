@@ -6,19 +6,18 @@ namespace Player.Components
 {
     public class PlayerInfo : NetworkBehaviour
     {
-        public readonly SyncVar<int> ActorNumber = new SyncVar<int>();
-
-        // Локальное свойство
+        private readonly SyncVar<int> _actorNumber = new SyncVar<int>();
+        
         public Transform SpawnPoint { get; private set; }
 
         private void Awake()
         {
-            ActorNumber.OnChange += OnActorNumberChanged;
+            _actorNumber.OnChange += OnActorNumberChanged;
         }
 
-        private void OnDestroy()
+        private void OnDestroy()    
         {
-            ActorNumber.OnChange -= OnActorNumberChanged;
+            _actorNumber.OnChange -= OnActorNumberChanged;
         }
 
         public override void OnStartClient()
@@ -27,7 +26,7 @@ namespace Player.Components
 
             if (IsOwner)
             {
-                gameObject.name = $"Player_{ActorNumber.Value} (Me)";
+                gameObject.name = $"Player_{_actorNumber.Value} (Me)";
             }
         }
 
@@ -45,20 +44,12 @@ namespace Player.Components
         {
             if (IsServerInitialized)
             {
-                ActorNumber.Value = id;
+                _actorNumber.Value = id;
             }
             else
             {
                 Debug.LogWarning("[PlayerInfo] Попытка изменить ActorNumber с клиента или до инициализации! Игнорируется.");
             }
         }
-
-        public void SetSpawnPoint(Transform spawnPoint)
-        {
-            SpawnPoint = spawnPoint;
-            Debug.Log($"[PlayerInfo] Spawn point set: {spawnPoint?.name}");
-        }
-
-        public int GetActorNumber() => ActorNumber.Value;
     }
 }

@@ -45,21 +45,8 @@ namespace Player
         {
             if (playerVirtualCamera != null)
             {
-                // Включаем виртуальную камеру только для владельца
                 playerVirtualCamera.enabled = true;
-                playerVirtualCamera.Priority.Value = 10; // Новый синтаксис
-                
-                // Получаем реальную камеру из виртуальной
-                _playerCameraComponent = playerVirtualCamera.GetComponent<Camera>();
-                
-                if (_playerCameraComponent == null)
-                {
-                    Debug.LogError("Camera component not found on CinemachineCamera!");
-                }
-                else
-                {
-                    Debug.Log($"Player camera setup: {_playerCameraComponent.name}");
-                }
+                playerVirtualCamera.Priority.Value = 10;
             }
             else
             {

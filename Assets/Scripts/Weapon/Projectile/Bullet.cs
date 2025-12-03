@@ -1,7 +1,6 @@
 ﻿using Core.Components;
 using UnityEngine;
 using FishNet.Object;
-using FishNet.Connection;
 
 namespace Weapon.Projectile
 {
@@ -12,14 +11,16 @@ namespace Weapon.Projectile
         [SerializeField] private int damage = 10;
         [SerializeField] private float lifetime = 3f;
         [SerializeField] private float speed = 20f;
+        [SerializeField] private GameObject impactEffect;
 
         private Transform _owner;
         private Rigidbody _rb;
+        private NetworkObject _ownerNetworkObject;
 
-        public void SetOwner(NetworkConnection owner)
+        public void SetOwner(Transform owner)
         {
-            if (owner != null && owner.FirstObject != null)
-                _owner = owner.FirstObject.transform;
+            _owner = owner;
+            _ownerNetworkObject = owner != null ? owner.GetComponent<NetworkObject>() : null;
         }
 
         public void SetDamage(float newDamage)
@@ -27,18 +28,19 @@ namespace Weapon.Projectile
             damage = Mathf.RoundToInt(newDamage);
         }
 
-        public override void OnStartServer()
+        public override void OnStartNetwork()
         {
-            base.OnStartServer(); // Хорошая практика вызывать base
+            base.OnStartNetwork();
             _rb = GetComponent<Rigidbody>();
-            Invoke(nameof(DespawnBullet), lifetime);
+            
+            if (IsServerInitialized)
+            {
+                Invoke(nameof(DespawnBullet), lifetime);
+            }
         }
 
         private void FixedUpdate()
         {
-            // Пуля двигается только на сервере (если это серверная пуля)
-            // Если вы хотите, чтобы клиенты тоже видели плавное движение, 
-            // пуле нужен компонент NetworkTransform или NetworkTransform(Predicted)
             if (!IsServerInitialized) return;
 
             _rb.MovePosition(transform.position + transform.forward * speed * Time.fixedDeltaTime);
@@ -46,29 +48,46 @@ namespace Weapon.Projectile
 
         private void OnTriggerEnter(Collider other)
         {
-            // Обработка столкновений только на сервере
             if (!IsServerInitialized) return;
-
-            // Игнорируем столкновение с владельцем пули
+            
             if (_owner != null && other.transform == _owner) return;
 
             if (other.TryGetComponent(out Health hp))
             {
-                // ИСПРАВЛЕНИЕ:
-                // 1. Метод называется TakeDamage.
-                // 2. Вторым аргументом передаем _owner (Transform), чтобы Health знал, кто атаковал.
-                hp.TakeDamage(damage, _owner);
+                hp.TakeDamage(damage, _owner, _ownerNetworkObject);
+            }
+            else
+            {
+                SpawnImpactEffect();
             }
 
             DespawnBullet();
         }
 
         [Server]
+        private void SpawnImpactEffect()
+        {
+            if (impactEffect != null)
+            {
+                GameObject effect = Instantiate(impactEffect, transform.position, transform.rotation);
+                NetworkObject netObj = effect.GetComponent<NetworkObject>();
+                if (netObj != null)
+                {
+                    Spawn(netObj);
+                }
+                Destroy(effect, 2f);
+            }
+        }
+
+        [Server]
         private void DespawnBullet()
         {
-            // Проверка на null нужна, так как объект мог быть уже уничтожен
             if (NetworkObject != null && NetworkObject.IsSpawned)
+            {
+                SpawnImpactEffect();
+                
                 NetworkObject.Despawn();
+            }
         }
     }
 }

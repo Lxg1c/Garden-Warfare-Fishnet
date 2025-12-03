@@ -81,11 +81,8 @@ namespace Gameplay
                 fog._FogRevealers.Add(
                     new csFogWar.FogRevealer(transform, 4, true)
                 );
-
-                Debug.Log($"[Client] LifeFruit({OwnerId}) added to fog revealers");
             }
         }
-
 
         private void OnDamaged(Transform attacker)
         {

@@ -1,5 +1,4 @@
 ﻿using FishNet.Object;
-using FishNet.Connection;
 using UnityEngine;
 using Player.Components;
 using Weapon.Base;
@@ -11,7 +10,6 @@ namespace Weapon
     {
         [Header("References")]
         public WeaponBase currentWeapon;
-        public CarryPlantAgent carry;
 
         [Header("Settings")]
         public bool holdToFire = true;
@@ -22,7 +20,6 @@ namespace Weapon
         private void Awake()
         {
             _input = new PlayerInputActions();
-            if (carry == null) carry = GetComponent<CarryPlantAgent>();
         }
 
         public override void OnStartClient()
@@ -41,13 +38,10 @@ namespace Weapon
         {
             if (!base.IsOwner) return;
             if (!_isEnabled) return;
-
-            // Если несем растение — не стреляем
-            if (carry != null && carry.IsCarrying) return;
+            
             if (currentWeapon == null) return;
 
             HandleShooting();
-            // HandleReload() удален, так как патронов нет
         }
 
         private void HandleShooting()
@@ -115,10 +109,10 @@ namespace Weapon
 
                 Spawn(bullet);
 
-                var bulletScript = bullet.GetComponent<Weapon.Projectile.Bullet>();
+                var bulletScript = bullet.GetComponent<Projectile.Bullet>();
                 if (bulletScript != null)
                 {
-                    bulletScript.SetOwner(this.Owner);
+                    bulletScript.SetOwner(transform);
                     bulletScript.SetDamage(rifle.damage);
                 }
 

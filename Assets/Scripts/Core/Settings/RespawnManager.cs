@@ -87,8 +87,6 @@ namespace Core.Settings
 
             PlayerLifeFruits[playerId] = lifeFruit;
             SetRespawnEnabled(playerId, true);
-
-            Debug.Log($"[Server] Created LifeFruit for player {playerId} at {spawnPoint}");
         }
 
         
