@@ -45,8 +45,8 @@ namespace Gameplay
         public override void OnStopClient()
         {
             base.OnStopClient();
-            // отписываемся при остановке клиента
-            Player.PlayerInitializer.OnPlayerFogReady -= ApplyFog;
+            
+            PlayerInitializer.OnPlayerFogReady -= ApplyFog;
         }
 
         private void TryAttachToPlayerFog()
@@ -57,7 +57,7 @@ namespace Gameplay
             var playerObj = conn.FirstObject;
             if (playerObj == null) return;
 
-            var initializer = playerObj.GetComponent<Player.PlayerInitializer>();
+            var initializer = playerObj.GetComponent<PlayerInitializer>();
             if (initializer == null) return;
 
             var fog = initializer.fogController?.GetFogInstance();
@@ -103,20 +103,17 @@ namespace Gameplay
             Debug.Log($"[Server] LifeFruit({OwnerId}) took damage from {attacker?.name}");
         }
 
-        private void OnDeath(Transform dead)
+        private void OnDeath()
         {
             if (!IsServerInitialized) return;
-            
+
             Debug.Log($"[Server] LifeFruit({OwnerId}) destroyed");
-            
-            // Запрещаем респаун для владельца
+
             RespawnManager.SetRespawnEnabled(OwnerId, false);
-            
-            // Уведомляем PlayerInitializer
+
             NotifyPlayerInitializer();
-            
-            // Уничтожаем объект
-            ServerManager.Despawn(gameObject);
+
+            // Деспавн обрабатывается в Health.Die(), не дублируем здесь
         }
 
         [Server]
@@ -127,7 +124,7 @@ namespace Gameplay
             {
                 if (client.FirstObject != null)
                 {
-                    var initializer = client.FirstObject.GetComponent<Player.PlayerInitializer>();
+                    var initializer = client.FirstObject.GetComponent<PlayerInitializer>();
                     if (initializer != null && initializer.OwnerId == OwnerId)
                     {
                         initializer.OnLifeFruitDestroyed();
@@ -145,9 +142,8 @@ namespace Gameplay
                 _health.OnDamaged -= OnDamaged;
                 _health.OnDeath -= OnDeath;
             }
-
-            // Safety unsubscribe
-            Player.PlayerInitializer.OnPlayerFogReady -= ApplyFog;
+            
+            PlayerInitializer.OnPlayerFogReady -= ApplyFog;
         }
     }
 }

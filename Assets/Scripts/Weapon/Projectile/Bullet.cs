@@ -32,19 +32,15 @@ namespace Weapon.Projectile
         {
             base.OnStartNetwork();
             _rb = GetComponent<Rigidbody>();
-            
+
             if (IsServerInitialized)
             {
                 Invoke(nameof(DespawnBullet), lifetime);
             }
         }
 
-        private void FixedUpdate()
-        {
-            if (!IsServerInitialized) return;
-
-            _rb.MovePosition(transform.position + transform.forward * speed * Time.fixedDeltaTime);
-        }
+        // Движение пули обрабатывается физикой через AddForce в WeaponController.SpawnBullet()
+        // Не используем FixedUpdate + MovePosition чтобы избежать двойного движения
 
         private void OnTriggerEnter(Collider other)
         {

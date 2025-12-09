@@ -1,223 +1,176 @@
 ﻿using System;
 using System.Collections.Generic;
-using Core.Components;
 using FishNet.Object;
-using UnityEngine;
 using UI.HUD.GameTimer;
+using UnityEngine;
 
 namespace AI.Camp
 {
     public class Camp : NetworkBehaviour
     {
-        [Header("Camp Settings")] 
         [SerializeField] private string campName = "Camp_01";
-        [SerializeField] private GameObject neutralCampPrefab;
+        [SerializeField] private GameObject campPrefab;
         
-        [SerializeField] private float initialSpawnTime = 60f;
-        [SerializeField] private float respawnInterval = 60f;
-        
-        private Transform _spawnPoint;
-        private bool _isCampClean;
-        private bool _isRespawning;
-        private float _respawnTimer;
-        
-        private bool _hasSpawnedInitial;
+        [Header("Respawn Settings")]
+        [SerializeField] private float initialSpawnTime = 30f;
+        [SerializeField] private float respawnInterval = 45f;
+
+        private readonly List<Neutral.Neutral> _units = new();
+        private bool _spawnedInitial;
+        private bool _isCampAlive;
         private float _nextRespawnTime;
-        
-        private List<Neutral.Neutral> _neutralUnits = new List<Neutral.Neutral>();
-
-        public event Action<List<Neutral.Neutral>> OnCampReady;
-
-        public string CampName => campName;
-        public bool IsCampClean => _isCampClean;
-
-        private void Awake()
-        {
-            _spawnPoint = transform;
-        }
+        private GameObject _currentCampInstance;
+        private CampController _currentController;
 
         public override void OnStartServer()
         {
             base.OnStartServer();
-            Debug.Log($"Camp '{campName}' initialized with {_neutralUnits.Count} units");
+            GameTimer.OnTimeChanged += HandleTime;
         }
 
-        private void Update()
+        public override void OnStopServer()
+        {
+            base.OnStopServer();
+            GameTimer.OnTimeChanged -= HandleTime;
+        }
+
+        private void HandleTime(float time)
         {
             if (!IsServerInitialized) return;
-            
-            if (_isCampClean && !_isRespawning)
+
+            // Первичный спавн
+            if (!_spawnedInitial && time >= initialSpawnTime)
             {
-                _respawnTimer -= Time.deltaTime;
-                if (_respawnTimer <= 0f)
-                {
-                    SpawnCamp();
-                }
+                Debug.Log($"[Camp {campName}] Initial spawn triggered at time {time}");
+                SpawnCamp();
+                _spawnedInitial = true;
+                _isCampAlive = true;
+            }
+
+            // Респавн по интервалу, только если кемп мертв
+            if (_spawnedInitial && !_isCampAlive && time >= _nextRespawnTime)
+            {
+                Debug.Log($"[Camp {campName}] Respawn triggered at time {time}, next was {_nextRespawnTime}");
+                SpawnCamp();
+                _isCampAlive = true;
             }
         }
 
-        public List<Neutral.Neutral> GetNeutralUnits()
-        {
-            return _neutralUnits;
-        }
-        
-        /// <summary>
-        /// Спавн кемпа
-        /// </summary>
+        [Server]
         private void SpawnCamp()
         {
-            if (_spawnPoint == null) return;
-            
-            SpawnCampAtPosition(_spawnPoint.position);
-            
-        }
-        
-        private void OnGameTimeChanged(float time)
-        {
-            if (!IsServerInitialized) return;
-            
-            if (!_hasSpawnedInitial && time >= initialSpawnTime)
+            if (_currentCampInstance != null)
             {
-                SpawnCamp();
-                _hasSpawnedInitial = true;
-                _nextRespawnTime = time + respawnInterval;
-            }
-            
-            if (_hasSpawnedInitial && time >= _nextRespawnTime)
-            {
-                _nextRespawnTime = time + respawnInterval;
-            }
-        }
-        
-        /// <summary>
-        /// Спавн кемпа в указанной позиции
-        /// </summary>
-        private void SpawnCampAtPosition(Vector3 position)
-        {
-            if (neutralCampPrefab == null)
-            {
-                Debug.LogError("Neutral prefab is not assigned!");
-                return;
+                DespawnCurrentCamp();
             }
 
-            GameObject campGo = Instantiate(neutralCampPrefab, position, Quaternion.identity, transform);
+            _currentCampInstance = Instantiate(campPrefab, transform.position, Quaternion.identity);
+            Spawn(_currentCampInstance);
+            
+            StartCoroutine(CollectUnitsAfterSpawn(_currentCampInstance));
+        }
 
-            NetworkObject netObj = campGo.GetComponent<NetworkObject>();
-            if (netObj == null)
+        private System.Collections.IEnumerator CollectUnitsAfterSpawn(GameObject campInstance)
+        {
+            yield return new WaitForSeconds(0.1f);
+
+            _units.Clear();
+
+            // Получаем CampController из заспавненного префаба
+            _currentController = campInstance.GetComponent<CampController>();
+
+            if (_currentController != null)
             {
-                Debug.LogError("Neutral prefab doesn't have NetworkObject!");
-                Destroy(campGo);
-                return;
+                // CampController сам найдет своих юнитов и зарегистрирует их через RegisterUnit()
+                _currentController.InitializeUnits(this);
+                // Юниты уже добавлены в _units через RegisterUnit(), не дублируем
             }
-    
-            Spawn(netObj);
-            
-            GetNeutralsInCamp(campGo);
-        }
-
-
-        /// <summary>
-        /// Собрать всех нейтралов в этом кемпе
-        /// </summary>
-        private void GetNeutralsInCamp(GameObject campInstance)
-        {
-            _neutralUnits.Clear();
-
-            Neutral.Neutral[] neutrals = campInstance.GetComponentsInChildren<Neutral.Neutral>();
-
-            foreach (var neutral in neutrals)
-                RegisterNeutral(neutral);
-
-            Debug.Log($"Camp '{campName}': FOUND {_neutralUnits.Count} neutrals");
-            
-            OnCampReady?.Invoke(_neutralUnits);
-        }
-
-
-        private void RegisterNeutral(Neutral.Neutral neutral)
-        {
-            if (neutral == null || _neutralUnits.Contains(neutral)) return;
-            
-            _neutralUnits.Add(neutral);
-            
-            Debug.Log($"Registered neutral '{neutral.name}' to camp '{campName}'");
-        }
-
-        private void UnRegisterNeutral(Neutral.Neutral neutral)
-        {
-            if (neutral == null) return;
-            
-            _neutralUnits.Remove(neutral);
-            CheckIfCampCleared();
-        }
-        
-        /// <summary>
-        /// Проверить, очищен ли кемп
-        /// </summary>
-        private void CheckIfCampCleared()
-        {
-            if (_isCampClean) return;
-            
-            int aliveCount = 0;
-            foreach (var neutral in _neutralUnits)
+            else
             {
-                if (neutral != null && neutral.gameObject.activeSelf)
+                // Fallback: ищем напрямую
+                var found = campInstance.GetComponentsInChildren<Neutral.Neutral>();
+                foreach (var n in found)
                 {
-                    Health health = neutral.GetComponent<Health>();
-                    if (health != null && health.GetHealth() > 0)
-                    {
-                        aliveCount++;
-                    }
+                    _units.Add(n);
+                    n.SetCampManager(this);
                 }
             }
-            
-            if (aliveCount == 0)
-            {
-                _isCampClean = true;
-               Debug.Log($"Camp '{campName}' cleared!");
-            }
-        }
-        
-        /// <summary>
-        /// Респавн одного нейтрала
-        /// </summary>
-        [Server]
-        private void RespawnNeutral(Neutral.Neutral neutral)
-        {
-            if (neutral == null) return;
-            
-            // Восстанавливаем здоровье
-            Health health = neutral.GetComponent<Health>();
-            if (health != null)
-            {
-                health.SetHealth(health.GetMaxHealth());
-            }
-            
-            // Активируем объект
-            neutral.gameObject.SetActive(true);
-            
-            // Сбрасываем состояние
-            NetworkObject netObj = neutral.GetComponent<NetworkObject>();
-            if (netObj != null && !netObj.IsSpawned)
-            {
-                Spawn(netObj);
-            }
-            
-            // Возвращаем на стартовую позицию
-            neutral.transform.position = transform.position;
-            neutral.SetState(Neutral.AiState.Idle);
-            
-            Debug.Log($"Camp '{campName}': Respawned {neutral.name}");
-        }
-        
-        private void OnEnable()
-        {
-            GameTimer.OnTimeChanged += OnGameTimeChanged;
+
+            Debug.Log($"[Camp {campName}] Spawned camp with {_units.Count} units");
+            _isCampAlive = _units.Count > 0;
         }
 
-        private void OnDisable()
+        [Server]
+        private void DespawnCurrentCamp()
         {
-            GameTimer.OnTimeChanged -= OnGameTimeChanged;
+            if (_currentCampInstance != null)
+            {
+                NetworkObject campNetworkObject = _currentCampInstance.GetComponent<NetworkObject>();
+                if (campNetworkObject != null && campNetworkObject.IsSpawned)
+                {
+                    // Используем ServerManager для деспавна
+                    ServerManager.Despawn(campNetworkObject);
+                }
+                else
+                {
+                    Destroy(_currentCampInstance);
+                }
+                _currentCampInstance = null;
+                _currentController = null;
+            }
+            _units.Clear();
+        }
+
+        [Server]
+        private void CheckIfCampCleared()
+        {
+            if (_units.Count == 0 && _isCampAlive)
+            {
+                Debug.Log($"[Camp {campName}] All units dead. Camp cleared.");
+                _isCampAlive = false;
+                
+                if (GameTimer.Instance != null)
+                {
+                    _nextRespawnTime = GameTimer.Instance.CurrentTime + respawnInterval;
+                    Debug.Log($"[Camp {campName}] Next respawn at {_nextRespawnTime} (current: {GameTimer.Instance.CurrentTime})");
+                }
+                else
+                {
+                    Debug.LogError($"[Camp {campName}] GameTimer.Instance is null!");
+                }
+            }
+        }
+
+        [Server]
+        public void RemoveUnit(Neutral.Neutral unit)
+        {
+            if (_units.Remove(unit))
+            {
+                Debug.Log($"[Camp {campName}] Unit removed. Remaining: {_units.Count}, IsCampAlive: {_isCampAlive}");
+                
+                // Уведомляем контроллер об изменении
+                if (_currentController != null)
+                {
+                    _currentController.OnUnitRemoved(unit);
+                }
+                
+                CheckIfCampCleared();
+            }
+            else
+            {
+                Debug.LogWarning($"[Camp {campName}] Tried to remove unit that wasn't in list!");
+            }
+        }
+
+        // Метод для регистрации юнита (вызывается из CampController)
+        [Server]
+        public void RegisterUnit(Neutral.Neutral unit)
+        {
+            if (!_units.Contains(unit))
+            {
+                _units.Add(unit);
+                unit.SetCampManager(this);
+            }
         }
     }
 }

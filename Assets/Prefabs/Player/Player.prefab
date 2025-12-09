@@ -386,7 +386,6 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8326548913328295048}
   _networkObjectCache: {fileID: 0}
-  displayName: 
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0
@@ -804,7 +803,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Weapon.Rifle
   weaponName: Weapon
-  damage: 10
+  damage: 100
   useRate: 0.5
   bulletPrefab: {fileID: 2671650034059795408, guid: 4f00208c7c4b0984fa237089cd6b16ed, type: 3}
   shootPoint: {fileID: 5319235003336113266}

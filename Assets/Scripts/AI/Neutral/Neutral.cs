@@ -1,9 +1,9 @@
-using Core.Components;
+using System;
+using AI.Camp;
 using UnityEngine;
 using UnityEngine.AI;
+using Core.Components;
 using FishNet.Object;
-using System.Collections;
-
 
 namespace AI.Neutral
 {
@@ -24,203 +24,182 @@ namespace AI.Neutral
         private Health _health;
         private NavMeshAgent _agent;
         private Vector3 _homePosition;
-        private Camp.Camp _assignedCamp;
-        
-        // Состояние
-        private AiState _currentState = AiState.Idle;
 
-        // Таймеры и цели
+        private AiState _state = AiState.Idle;
+
         private Transform _target;
         private float _attackTimer;
-        private float _chaseTimer; 
-        private Coroutine _returnCoroutine;
-        private float _lastDetectionTime;
-        private readonly float _detectionCheckInterval = 0.5f;
+        private float _chaseTimer;
+        private float _lastDetectionCheck;
         
+        public event Action<Transform> OnNeutralGetDamage;
+
+        private Camp.Camp _campManager;
+        private CampController _campController;
+
+        public void SetCampManager(Camp.Camp camp)
+        {
+            _campManager = camp;
+            _campController = GetComponentInParent<CampController>();
+            Debug.Log($"[Neutral {name}] Camp manager set");
+        }
+
         private void Awake()
         {
             _agent = GetComponent<NavMeshAgent>();
-            _health = GetComponent<Health>();
+            _health = GetComponent<Health>(); // ВАЖНО: инициализация здоровья!
 
             _homePosition = transform.position;
         }
 
-        public override void OnStartServer()
+        public override void OnStartNetwork()
         {
-            base.OnStartServer();
-            _homePosition = transform.position;
+            base.OnStartNetwork();
             
-            _health.OnDamaged += OnDamaged;
-            _health.OnDeath += OnDeath;
+            if (_health != null)
+            {
+                _health.OnDamaged += OnDamaged;
+                _health.OnDeath += OnDeath;
+            }
+            
+            Debug.Log($"[Neutral {name}] Started on network");
         }
 
-        private void OnDestroy()
+        public override void OnStopNetwork()
         {
+            base.OnStopNetwork();
+            
             if (_health != null)
             {
                 _health.OnDamaged -= OnDamaged;
                 _health.OnDeath -= OnDeath;
             }
-            
-            if (_returnCoroutine != null)
-                StopCoroutine(_returnCoroutine);
         }
 
         private void Update()
         {
-            if (!IsServerInitialized) return;
+            if (!IsServerStarted) return; // AI работает только на сервере
             
-            if (_currentState == AiState.Chasing || _currentState == AiState.Attacking)
+            switch (_state)
             {
-                _chaseTimer -= Time.deltaTime;
-                
-                if (_chaseTimer <= 0f)
-                {
-                    StartReturningHome();
-                    return;
-                }
-            }
-            
-            if (_currentState == AiState.Idle && Time.time - _lastDetectionTime > _detectionCheckInterval)
-            {
-                CheckForNearbyPlayers();
-                _lastDetectionTime = Time.time;
-            }
-            
-            if (_currentState != AiState.Returning && 
-                Vector3.Distance(transform.position, _homePosition) > maxDistanceFromHome)
-            {
-                StartReturningHome();
-                return;
-            }
+                case AiState.Idle:
+                    IdleUpdate();
+                    break;
 
-            switch (_currentState)
-            {
                 case AiState.Chasing:
-                    UpdateChasing();
+                    ChasingUpdate();
                     break;
+
                 case AiState.Attacking:
-                    UpdateAttacking();
+                    AttackingUpdate();
                     break;
+
                 case AiState.Returning:
-                    UpdateReturning();
+                    ReturningUpdate();
                     break;
             }
         }
 
-        #region State Updates
+        // ------------------------------------------------------------
+        // STATE MACHINE
+        // ------------------------------------------------------------
 
-        private void UpdateChasing()
+        private void IdleUpdate()
         {
-            if (_target == null || _target == transform)
+            if (Time.time - _lastDetectionCheck > 0.3f)
             {
-                StartReturningHome();
-                return;
+                _lastDetectionCheck = Time.time;
+                DetectPlayers();
             }
-            
-            Health targetHealth = _target.GetComponent<Health>();
-            if (targetHealth != null && targetHealth.GetHealth() <= 0)
+        }
+
+        private void ChasingUpdate()
+        {
+            if (_target == null)
             {
-                StartReturningHome();
+                StartReturn();
                 return;
             }
 
-            float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-            
-            if (distanceToTarget <= attackRange)
+            float dist = Vector3.Distance(transform.position, _target.position);
+
+            if (dist < attackRange)
             {
                 SetState(AiState.Attacking);
+                return;
             }
-            else if (distanceToTarget > chaseRange * 1.5f)
+
+            if (dist > chaseRange * 1.5f)
             {
-                StartReturningHome();
+                StartReturn();
+                return;
             }
-            else
+
+            _chaseTimer -= Time.deltaTime;
+            if (_chaseTimer <= 0f)
             {
-                _agent.SetDestination(_target.position);
+                StartReturn();
+                return;
             }
+
+            _agent.SetDestination(_target.position);
         }
 
-        private void UpdateAttacking()
+        private void AttackingUpdate()
         {
-            if (_target == null || _target == transform)
+            if (_target == null)
             {
-                StartReturningHome();
+                StartReturn();
                 return;
-            }
-            
-            Health targetHealth = _target.GetComponent<Health>();
-            if (targetHealth != null && targetHealth.GetHealth() <= 0)
-            {
-                StartReturningHome();
-                return;
-            }
-            
-            Vector3 direction = (_target.position - transform.position).normalized;
-            direction.y = 0;
-            if (direction != Vector3.zero)
-            {
-                Quaternion lookRotation = Quaternion.LookRotation(direction);
-                transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, Time.deltaTime * 5f);
             }
 
-            float distanceToTarget = Vector3.Distance(transform.position, _target.position);
-            
-            if (distanceToTarget > attackRange)
+            float dist = Vector3.Distance(transform.position, _target.position);
+
+            if (dist > attackRange)
             {
                 SetState(AiState.Chasing);
+                return;
             }
-            else
+
+            RotateTowards(_target.position);
+
+            _attackTimer -= Time.deltaTime;
+
+            if (_attackTimer <= 0f)
             {
-                _attackTimer -= Time.deltaTime;
-                if (_attackTimer <= 0f)
-                {
-                    AttackTarget();
-                    _attackTimer = attackCooldown;
-                }
+                Attack();
+                _attackTimer = attackCooldown;
             }
         }
 
-        private void UpdateReturning()
+        private void ReturningUpdate()
         {
-            float distanceToHome = Vector3.Distance(transform.position, _homePosition);
+            float dist = Vector3.Distance(transform.position, _homePosition);
 
-            if (distanceToHome <= 0.5f)
+            if (dist <= 0.5f)
             {
                 SetState(AiState.Idle);
+                // Восстанавливаем здоровье при возврате домой
+                if (_health != null && IsServerStarted)
+                {
+                    _health.SetHealth(_health.GetMaxHealth());
+                }
+                return;
             }
-            else
-            {
-                _agent.SetDestination(_homePosition);
-            }
+
+            _agent.SetDestination(_homePosition);
         }
 
-        #endregion
+        // ------------------------------------------------------------
+        // ACTIONS
+        // ------------------------------------------------------------
 
-        #region Actions
-
-        [Server]
-        private void AttackTarget()
+        private void SetState(AiState newState)
         {
-            if (_target == null || _target == transform) return;
+            if (_state == newState) return;
 
-            Debug.Log($"{name} attacks {_target.name} for {attackDamage} damage!");
-            
-            Health targetHealth = _target.GetComponent<Health>();
-            if (targetHealth != null)
-            {
-                targetHealth.TakeDamage(attackDamage, transform);
-            }
-        }
+            _state = newState;
 
-        [Server]
-        public void SetState(AiState newState)
-        {
-            if (_currentState == newState) return;
-
-            Debug.Log($"{name}: {_currentState} -> {newState}");
-            _currentState = newState;
-    
             switch (newState)
             {
                 case AiState.Idle:
@@ -230,189 +209,175 @@ namespace AI.Neutral
 
                 case AiState.Chasing:
                     _agent.isStopped = false;
-                    _chaseTimer = returnToHomeTimer; 
+                    _chaseTimer = returnToHomeTimer;
                     break;
 
                 case AiState.Attacking:
                     _agent.isStopped = true;
                     _attackTimer = 0f;
-                    _chaseTimer = returnToHomeTimer;
                     break;
 
                 case AiState.Returning:
                     _agent.isStopped = false;
                     _target = null;
-                    _chaseTimer = 0f;
                     break;
             }
         }
 
-        #endregion
-
-        #region Detection and Aggro
-
-        /// <summary>
-        /// Проверка близких игроков (для автоматического агро)
-        /// </summary>
-        private void CheckForNearbyPlayers()
+        private void StartReturn()
         {
-            if (_currentState != AiState.Idle) return;
+            SetState(AiState.Returning);
+            _agent.SetDestination(_homePosition);
+        }
 
-            Collider[] players = Physics.OverlapSphere(transform.position, detectionRange, playerLayer);
+        private void Attack()
+        {
+            if (_target == null) return;
 
-            foreach (var player in players)
+            Health h = _target.GetComponent<Health>();
+            if (h != null)
             {
-                if (player.transform == transform) continue;
+                h.TakeDamage(attackDamage, transform);
+            }
+        }
+
+        private void DetectPlayers()
+        {
+            if (_state != AiState.Idle) return;
+
+            Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, playerLayer);
+
+            foreach (var c in hits)
+            {
+                Transform t = c.transform;
+
+                if (t == transform) continue;
+
+                Health h = t.GetComponent<Health>();
                 
-                Health targetHealth = player.GetComponent<Health>();
-                if (targetHealth != null && targetHealth.GetHealth() <= 0) continue;
+                bool isAlive = (h != null && h.GetHealth() > 0);
                 
-                if (CanSeeTarget(player.transform))
+                if (!isAlive) continue;
+
+                if (CanSee(t))
                 {
-                    SetAggro(player.transform);
+                    Aggro(t);
                     return;
                 }
             }
         }
 
-        /// <summary>
-        /// Проверка видимости цели (raycast)
-        /// </summary>
-        private bool CanSeeTarget(Transform target)
+        private bool CanSee(Transform t)
         {
-            if (target == null) return false;
-            
-            Vector3 direction = target.position - transform.position;
-            float distance = direction.magnitude;
-            
-            // Проверяем Raycast
-            if (Physics.Raycast(transform.position, direction.normalized, out RaycastHit hit, distance))
-            {
-                return hit.transform == target;
-            }
-            
+            Vector3 dir = t.position - transform.position;
+            if (Physics.Raycast(transform.position, dir.normalized, out var hit, dir.magnitude))
+                return hit.transform == t;
+
             return true;
         }
 
-        /// <summary>
-        /// Установить агро на цель
-        /// </summary>
-        [Server]
-        public void SetAggro(Transform target)
+        private void Aggro(Transform t)
         {
-            if (target == null || target == transform) return;
-    
-            Health targetHealth = target.GetComponent<Health>();
-            if (targetHealth != null && targetHealth.GetHealth() <= 0) return;
-    
-            _target = target;
+            _target = t;
             SetState(AiState.Chasing);
-    
-            Debug.Log($"{name}: Aggro set on {target.name}!");
+            Debug.Log($"[Neutral {name}] Aggro on {t.name}");
         }
 
-        /// <summary>
-        /// Начать возвращение домой
-        /// </summary>
-        [Server]
-        private void StartReturningHome()
+        public void SetAggro(Transform t)
         {
-            if (_currentState == AiState.Returning) return;
-            
-            SetState(AiState.Returning);
-            
-            if (_returnCoroutine != null)
-                StopCoroutine(_returnCoroutine);
-            
-            _returnCoroutine = StartCoroutine(ReturnHomeRoutine());
-        }
-
-        private IEnumerator ReturnHomeRoutine()
-        {
-            yield return new WaitForSeconds(0.1f);
-            
-            if (_currentState == AiState.Returning)
+            // НЕ агримся если возвращаемся домой
+            if (_state == AiState.Returning)
             {
-                _agent.SetDestination(_homePosition);
+                Debug.Log($"[Neutral {name}] Ignoring aggro - returning home");
+                return;
+            }
+            
+            Aggro(t);
+        }
+
+        private void RotateTowards(Vector3 pos)
+        {
+            Vector3 dir = (pos - transform.position).normalized;
+            dir.y = 0;
+
+            if (dir != Vector3.zero)
+            {
+                Quaternion rot = Quaternion.LookRotation(dir);
+                transform.rotation = Quaternion.Slerp(transform.rotation, rot, Time.deltaTime * 5f);
             }
         }
 
-        #endregion
+        // ------------------------------------------------------------
+        // DAMAGE HANDLING
+        // ------------------------------------------------------------
 
-        #region Damage Handling
-
-        /// <summary>
-        /// Вызывается, когда нейтрал получает урон
-        /// </summary>
         private void OnDamaged(Transform attacker)
         {
-            if (!IsServerInitialized) return;
+            Debug.Log($"[Neutral {name}] OnDamaged by {(attacker != null ? attacker.name : "null")}");
             
-            if (attacker == transform || attacker == null)
+            if (attacker == null) return;
+
+            // НЕ агримся если возвращаемся домой
+            if (_state == AiState.Returning)
             {
-                Debug.LogWarning($"{name}: Received damage from self or null!");
+                Debug.Log($"[Neutral {name}] Ignoring damage - returning home");
                 return;
             }
-            
-            Health attackerHealth = attacker.GetComponent<Health>();
-            if (attackerHealth != null && attackerHealth.GetHealth() <= 0)
-            {
-                Debug.Log($"{name}: Attacker is dead!");
-                return;
-            }
-            
+
             _target = attacker;
             SetState(AiState.Chasing);
+            
+            // Вызываем событие для распространения агро через CampController
+            OnNeutralGetDamage?.Invoke(attacker);
         }
-        
-        /// <summary>
-        /// Вызывается при смерти нейтрала
-        /// </summary>
-        private void OnDeath(Transform deadTransform)
+
+        private void OnDeath()
         {
-            if (!IsServerInitialized) return;
-            
-            Debug.Log($"{name} died!");
-            
-            if (_returnCoroutine != null)
-                StopCoroutine(_returnCoroutine);
+            Debug.Log($"[Neutral {name}] OnDeath called (IsServer: {IsServerStarted})");
             
             _agent.isStopped = true;
             enabled = false;
-        }
 
-        #endregion
+            // Уведомляем Camp ТОЛЬКО на сервере
+            if (IsServerStarted)
+            {
+                if (_campManager != null)
+                {
+                    _campManager.RemoveUnit(this);
+                }
+                else
+                {
+                    Debug.LogWarning($"[Neutral {name}] No camp manager on death!");
+                }
+            
+                // Деспавним через NetworkObject
+                StartCoroutine(DelayedDespawn());
+            }
+        }
+        
+        private System.Collections.IEnumerator DelayedDespawn()
+        {
+            yield return new WaitForSeconds(2f);
+            
+            if (NetworkObject != null && NetworkObject.IsSpawned)
+            {
+                ServerManager.Despawn(NetworkObject);
+            }
+        }
 
         private void OnDrawGizmosSelected()
         {
-            // Визуализация радиусов
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(transform.position, attackRange);
+
             Gizmos.color = Color.yellow;
             Gizmos.DrawWireSphere(transform.position, chaseRange);
 
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, attackRange);
-            
             Gizmos.color = Color.blue;
             Gizmos.DrawWireSphere(transform.position, detectionRange);
-            
+
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, maxDistanceFromHome);
-            
-            // Показываем цель, если есть
-            if (_target != null)
-            {
-                Gizmos.color = Color.magenta;
-                Gizmos.DrawLine(transform.position, _target.position);
-            }
-            
-            // Показываем точку дома
-            Gizmos.color = Color.cyan;
-            Gizmos.DrawSphere(_homePosition, 0.3f);
-        }
-        
-        public AiState GetCurrentState()
-        {
-            return _currentState;
         }
     }
 

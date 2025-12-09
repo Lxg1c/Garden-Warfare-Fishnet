@@ -2199,8 +2199,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1196608841}
-  - component: {fileID: 1196608843}
   - component: {fileID: 1196608842}
+  - component: {fileID: 1196608843}
   m_Layer: 0
   m_Name: NeutralCamp
   m_TagString: Untagged
@@ -2285,7 +2285,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1196608840}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc7927a26b44412fb54400d33786cd82, type: 3}
+  m_Script: {fileID: 11500000, guid: e21885d2dc104ac9a58129296b3afb66, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AI.Camp.Camp
   _componentIndexCache: 255

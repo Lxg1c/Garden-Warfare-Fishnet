@@ -14,10 +14,10 @@ GameObject:
   - component: {fileID: 5806979624426924846}
   - component: {fileID: 1978538876353789631}
   - component: {fileID: 8639578602781137855}
-  - component: {fileID: 5325482692965211662}
   - component: {fileID: 8323966917485891107}
+  - component: {fileID: 979464400910819283}
   m_Layer: 0
-  m_Name: Neutral
+  m_Name: NeutralPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -152,12 +152,34 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Components.Health
   _componentIndexCache: 255
-  _addedNetworkObject: {fileID: 5325482692965211662}
+  _addedNetworkObject: {fileID: 979464400910819283}
   _networkObjectCache: {fileID: 0}
   initialHealth: 100
   maxHealth: 100
   healthBarPrefab: {fileID: 0}
---- !u!114 &5325482692965211662
+--- !u!114 &8323966917485891107
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 276308323977331136}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4405b834eac56f042aa20fa6220485f0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TestNeutral
+  attackRange: 2
+  chaseRange: 10
+  detectionRange: 3
+  attackCooldown: 1
+  attackDamage: 10
+  playerLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  returnToHomeTimer: 3
+  maxDistanceFromHome: 15
+--- !u!114 &979464400910819283
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -203,36 +225,10 @@ MonoBehaviour:
   _teleportThreshold: 1
   <PrefabId>k__BackingField: 65535
   <SpawnableCollectionId>k__BackingField: 0
-  <AssetPathHash>k__BackingField: 7462804591469240915
+  <AssetPathHash>k__BackingField: 14397002884497370199
   SceneId: 0
   SerializedTransformProperties:
     Position: {x: 0, y: 0, z: 0}
     Rotation: {x: 0, y: 0, z: 0, w: 0}
     Scale: {x: 0, y: 0, z: 0}
     IsValid: 0
---- !u!114 &8323966917485891107
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 276308323977331136}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4405b834eac56f042aa20fa6220485f0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TestNeutral
-  _componentIndexCache: 255
-  _addedNetworkObject: {fileID: 5325482692965211662}
-  _networkObjectCache: {fileID: 0}
-  attackRange: 2
-  chaseRange: 10
-  detectionRange: 3
-  attackCooldown: 1
-  attackDamage: 10
-  playerLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  returnToHomeTimer: 3
-  maxDistanceFromHome: 15
-  showDebug: 1

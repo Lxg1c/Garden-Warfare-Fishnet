@@ -19,12 +19,12 @@ namespace Player
         public float normalSpeed = 5f;
         public float carrySpeed = 3f;
         
-        // ¿ÌËÏ‡ˆËË
+        // ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ
         private float _animMoveX;
         private float _animMoveY;
         private readonly float _animationSmooth = 10f;
         
-        //  ˝¯ËÓ‚‡ÌÌ˚Â ı˝¯Ë Ô‡‡ÏÂÚÓ‚
+        // ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ
         private int _moveXHash;
         private int _moveYHash;
         private int _moveSpeedHash;
@@ -73,6 +73,7 @@ namespace Player
         private void ProcessMovement()
         {
             Vector3 inputDir = new Vector3(_moveInput.x, 0, _moveInput.y);
+            Vector3 moveVector = Vector3.zero;
 
             if (inputDir.magnitude > 0.1f)
             {
@@ -80,8 +81,12 @@ namespace Player
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
 
                 float currentSpeed = normalSpeed;
-                _characterController.Move(currentSpeed * Time.deltaTime * inputDir);
+                moveVector = currentSpeed * Time.deltaTime * inputDir;
             }
+
+            // –ü—Ä–∏–º–µ–Ω—è–µ–º –≥—Ä–∞–≤–∏—Ç–∞—Ü–∏—é –∫ –¥–≤–∏–∂–µ–Ω–∏—é
+            moveVector.y = _verticalVelocity * Time.deltaTime;
+            _characterController.Move(moveVector);
         }
 
         private void UpdateAnimator()

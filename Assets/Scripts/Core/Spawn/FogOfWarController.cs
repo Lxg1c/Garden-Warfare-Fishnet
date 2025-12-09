@@ -28,7 +28,14 @@ namespace Core.Spawn
             _fogInstance = Instantiate(fogPrefab);
             _fogInstance.name = "Local Fog Of War";
             _levelMidPoint = GameObject.Find("Floor");
-            _fogInstance.SetLevelMidPoint(_levelMidPoint.transform);
+            if (_levelMidPoint != null)
+            {
+                _fogInstance.SetLevelMidPoint(_levelMidPoint.transform);
+            }
+            else
+            {
+                Debug.LogWarning("FogOfWarController: 'Floor' object not found! Using default mid point.");
+            }
             
             _fogInstance._FogRevealers.Add(
                 new csFogWar.FogRevealer(player, radius, true)

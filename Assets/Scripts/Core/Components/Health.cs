@@ -9,7 +9,7 @@ namespace Core.Components
 {
     public class Health : NetworkBehaviour, IDamageable
     {
-        private readonly SyncVar<float> CurrentHealth = new SyncVar<float>();
+        private readonly SyncVar<float> _сurrentHealth = new SyncVar<float>();
 
         [Header("Settings")]
         [SerializeField] private float initialHealth = 100f;
@@ -27,31 +27,29 @@ namespace Core.Components
         public delegate void DamageEvent(Transform attacker);
         public event DamageEvent OnDamaged;
 
-        public delegate void DeathEvent(Transform deadTransform);
+        public delegate void DeathEvent();
         public event DeathEvent OnDeath;
 
         private void OnDestroy()
         {
-            CurrentHealth.OnChange -= OnHealthChanged;
+            _сurrentHealth.OnChange -= OnHealthChanged;
         }
         
         public override void OnStartClient()
         {
-            if (!IsOwner) return;
-            
             base.OnStartClient();
-
-            CurrentHealth.OnChange += OnHealthChanged;
+            // Подписка на OnChange уже сделана в OnStartNetwork(), не дублируем
 
             InitializeHealthBar();
         }
 
+
         public override void OnStartNetwork()
         {
-            CurrentHealth.OnChange += OnHealthChanged;
+            _сurrentHealth.OnChange += OnHealthChanged;
             if (maxHealth <= 0) maxHealth = initialHealth;
 
-            CurrentHealth.Value = initialHealth;
+            _сurrentHealth.Value = initialHealth;
             base.OnStartNetwork();
         }
 
@@ -83,7 +81,7 @@ namespace Core.Components
                 if (_healthBarController != null)
                 {
                     _healthBarController.Initialize(this);
-                    _healthBarController.UpdateHealthBar(CurrentHealth.Value, maxHealth);
+                    _healthBarController.UpdateHealthBar(_сurrentHealth.Value, maxHealth);
                 }
                 else
                 {
@@ -115,17 +113,16 @@ namespace Core.Components
 
         private void ApplyDamage(int damage, NetworkObject attackerNo)
         {
-            if (CurrentHealth.Value <= 0f) return;
+            if (_сurrentHealth.Value <= 0f) return;
 
-            float newVal = Mathf.Clamp(CurrentHealth.Value - damage, 0f, MaxHealth);
-            CurrentHealth.Value = newVal;
+            float newVal = Mathf.Clamp(_сurrentHealth.Value - damage, 0f, MaxHealth);
+            _сurrentHealth.Value = newVal;
 
             ObserversRpc_OnDamaged(attackerNo);
 
-            if (CurrentHealth.Value <= 0f)
+            if (_сurrentHealth.Value <= 0f)
             {
-                Transform attackerTransform = attackerNo != null ? attackerNo.transform : null;
-                Die(attackerTransform);
+                Die();
             }
         }
 
@@ -136,15 +133,12 @@ namespace Core.Components
             OnDamaged?.Invoke(attackerTransform);
         }
 
-        private void Die(Transform killer)
+        private void Die()
         {
-            // Вызываем событие смерти на всех клиентах
             ObserversRpc_OnDeath();
             
-            // Только сервер уничтожает объект
             if (IsServerInitialized)
             {
-                // Проверяем, нужно ли респавнить
                 var respawn = FindFirstObjectByType<RespawnManager>();
                 if (respawn != null)
                 {
@@ -152,7 +146,6 @@ namespace Core.Components
                 }
                 else
                 {
-                    // Если нет RespawnManager, просто уничтожаем
                     NetworkObject netObj = GetComponent<NetworkObject>();
                     if (netObj != null)
                     {
@@ -170,7 +163,7 @@ namespace Core.Components
         private void ObserversRpc_OnDeath()
         {
             // Вызываем событие смерти
-            OnDeath?.Invoke(transform);
+            OnDeath?.Invoke();
             
             // Уничтожаем HealthBar
             if (_healthBarController != null)
@@ -179,13 +172,10 @@ namespace Core.Components
                 _healthBarController = null;
             }
             
-            // Отключаем визуал (опционально)
             var renderer = GetComponent<Renderer>();
             if (renderer != null) renderer.enabled = false;
             var collider = GetComponent<Collider>();
             if (collider != null) collider.enabled = false;
-            
-            // Не отключаем GameObject! Пусть Despawn сам обработает
         }
 
         private void OnHealthChanged(float oldVal, float newVal, bool asServer)
@@ -199,7 +189,7 @@ namespace Core.Components
         public void SetHealthBarController(HealthBarController controller)
         {
             _healthBarController = controller;
-            _healthBarController.UpdateHealthBar(CurrentHealth.Value, MaxHealth);
+            _healthBarController.UpdateHealthBar(_сurrentHealth.Value, MaxHealth);
         }
 
         // -----------------------
@@ -209,7 +199,7 @@ namespace Core.Components
         {
             if (IsServerInitialized)
             {
-                CurrentHealth.Value = Mathf.Clamp(newHealth, 0f, MaxHealth);
+                _сurrentHealth.Value = Mathf.Clamp(newHealth, 0f, MaxHealth);
             }
         }
 
@@ -217,11 +207,11 @@ namespace Core.Components
         {
             if (IsServerInitialized)
             {
-                SetHealth(CurrentHealth.Value + amount);
+                SetHealth(_сurrentHealth.Value + amount);
             }
         }
         
-        public float GetHealth() => CurrentHealth.Value;
+        public float GetHealth() => _сurrentHealth.Value;
         
         public float GetMaxHealth() => MaxHealth;
     }
