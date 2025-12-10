@@ -1,6 +1,7 @@
 using AI.Neutral;
 using Core.Components;
 using FishNet.Object;
+using Gameplay.TurretPlant;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -198,6 +199,9 @@ namespace Core.Settings
         private IEnumerator HandleEliminatedPlayer(GameObject deadPlayer, int playerId)
         {
             Debug.Log($"[Server] Player {playerId} eliminated - LifeFruit destroyed");
+
+            // Очищаем все турели игрока
+            TurretPlantManager.Instance?.CleanupPlayerTurrets(playerId);
 
             yield return new WaitForSeconds(3f);
 

@@ -10,7 +10,10 @@ namespace Gameplay
     [RequireComponent(typeof(Health))]
     [RequireComponent(typeof(csFogVisibilityAgent))]
     public class LifeFruit : NetworkBehaviour
-    { 
+    {
+        [Header("Planting Zone")]
+        [SerializeField] private GameObject plantingZoneVisual;
+
         private Health _health;
         private csFogVisibilityAgent _visibilityAgent;
 
@@ -18,9 +21,41 @@ namespace Gameplay
         {
             _health = GetComponent<Health>();
             _visibilityAgent = GetComponent<csFogVisibilityAgent>();
-            
+
             _health.OnDamaged += OnDamaged;
             _health.OnDeath += OnDeath;
+
+            // Скрываем зону посадки по умолчанию
+            if (plantingZoneVisual != null)
+            {
+                plantingZoneVisual.SetActive(false);
+            }
+        }
+
+        // ==================
+        // PLANTING ZONE (вызывается локально через SendMessage)
+        // ==================
+
+        /// <summary>
+        /// Показывает зону посадки (вызывается только на клиенте владельца)
+        /// </summary>
+        public void ShowPlantingZone()
+        {
+            if (plantingZoneVisual != null)
+            {
+                plantingZoneVisual.SetActive(true);
+            }
+        }
+
+        /// <summary>
+        /// Скрывает зону посадки
+        /// </summary>
+        public void HidePlantingZone()
+        {
+            if (plantingZoneVisual != null)
+            {
+                plantingZoneVisual.SetActive(false);
+            }
         }
 
         public override void OnStartServer()

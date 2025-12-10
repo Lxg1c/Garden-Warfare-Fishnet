@@ -23,6 +23,7 @@ GameObject:
   - component: {fileID: 6540299870522062612}
   - component: {fileID: 250330345644176048}
   - component: {fileID: 3088087929079423283}
+  - component: {fileID: 4108245014672999432}
   m_Layer: 7
   m_Name: Player
   m_TagString: Player
@@ -341,9 +342,6 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 8326548913328295048}
   initialHealth: 100
   maxHealth: 100
-  deathVisualDelay: 0
-  deathEffectPrefab: {fileID: 0}
-  deathAnimationTrigger: Death
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &6540299870522062612
 MonoBehaviour:
@@ -389,6 +387,28 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 8326548913328295048}
   _networkObjectCache: {fileID: 0}
+--- !u!114 &4108245014672999432
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1270568247751947843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 484e3994cc3010f448636da1b85e55fd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCarryController
+  _componentIndexCache: 255
+  _addedNetworkObject: {fileID: 8326548913328295048}
+  _networkObjectCache: {fileID: 0}
+  interactRange: 2.5
+  digTime: 1.5
+  turretPlantLayer:
+    serializedVersion: 2
+    m_Bits: 256
+  carrySpeedMultiplier: 0.7
+  carryOffset: {x: 0, y: 0.5, z: 1.2}
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0
@@ -806,7 +826,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Weapon.Rifle
   weaponName: Weapon
-  damage: 100
+  damage: 50
   useRate: 0.5
   bulletPrefab: {fileID: 2671650034059795408, guid: 4f00208c7c4b0984fa237089cd6b16ed, type: 3}
   shootPoint: {fileID: 5319235003336113266}

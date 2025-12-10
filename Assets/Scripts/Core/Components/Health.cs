@@ -239,26 +239,36 @@ namespace Core.Components
         [ObserversRpc]
         private void ObserversRpc_OnRevive(Vector3 position, Quaternion rotation)
         {
-            Debug.Log($"[Health] {name} ObserversRpc_OnRevive called at {position}");
-
             IsDead = false;
 
-            // Сначала телепортируем (пока объект ещё выключен)
-            // Отключаем CharacterController чтобы можно было изменить позицию
+            // Включаем рендереры (показываем игрока)
+            foreach (var rend in _renderers)
+            {
+                if (rend != null) rend.enabled = true;
+            }
+
+            // Телепортируем на точку респавна
             if (_characterController != null)
             {
                 _characterController.enabled = false;
+                transform.SetPositionAndRotation(position, rotation);
+                _characterController.enabled = true;
+            }
+            else
+            {
+                transform.SetPositionAndRotation(position, rotation);
             }
 
-            transform.SetPositionAndRotation(position, rotation);
-
-            // Включаем весь GameObject
-            gameObject.SetActive(true);
-
-            // Включаем CharacterController обратно
-            if (_characterController != null)
+            // Включаем скрипты движения
+            foreach (var script in _movementScripts)
             {
-                _characterController.enabled = true;
+                if (script != null) script.enabled = true;
+            }
+
+            // Включаем все коллайдеры
+            foreach (var col in _colliders)
+            {
+                if (col != null) col.enabled = true;
             }
 
             // Пересоздаем HealthBar
@@ -267,7 +277,7 @@ namespace Core.Components
             // Вызываем событие возрождения
             OnRevive?.Invoke();
 
-            Debug.Log($"[Health] {name} revived - GameObject enabled at {position}");
+            Debug.Log($"[Health] {gameObject.name} revived at {position}");
         }
 
         /// <summary>
