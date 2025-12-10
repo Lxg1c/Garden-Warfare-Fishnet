@@ -8,7 +8,7 @@ public class GameSpawnManager : NetworkBehaviour
 {
     public static GameSpawnManager Instance;
 
-    [Header("Prefabs (Из папки Project!)")]
+    [Header("Prefabs (пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ Project!)")]
     [SerializeField] private NetworkObject playerPrefab;
     [SerializeField] private NetworkObject lifeFruitPrefab;
 
@@ -25,18 +25,16 @@ public class GameSpawnManager : NetworkBehaviour
     {
         base.OnStartServer();
 
-        Debug.Log("SPAWNER: Сервер запущен. Подписываюсь на события...");
-
-        // 1. Подписываемся на будущие подключения
+        Debug.Log("SPAWNER: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ...");
+        
         NetworkManager.SceneManager.OnClientLoadedStartScenes += OnClientLoadedScene;
-
-        // 2. ВАЖНО: Проверяем тех, кто УЖЕ загрузился (например, Хоста)
+        
         foreach (NetworkConnection conn in ServerManager.Clients.Values)
         {
-            // ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавлены скобки (true)
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ (true)
             if (conn.LoadedStartScenes(true))
             {
-                Debug.Log($"SPAWNER: Игрок {conn.ClientId} уже тут. Спауним вручную.");
+                Debug.Log($"SPAWNER: пїЅпїЅпїЅпїЅпїЅ {conn.ClientId} пїЅпїЅпїЅ пїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
                 OnClientLoadedScene(conn, true);
             }
         }
@@ -53,38 +51,39 @@ public class GameSpawnManager : NetworkBehaviour
     {
         if (!asServer) return;
 
-        // Защита от двойного спауна: проверяем, есть ли у игрока уже объекты
+        // пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         if (conn.Objects.Count > 0)
         {
-            // Это грубая проверка, но она поможет понять, не спауним ли мы дважды
-            // Debug.LogWarning($"У игрока {conn.ClientId} уже есть объекты! Пропускаем?");
-            // return; // Раскомментируйте, если будут дубликаты
+            // пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+            // Debug.LogWarning($"пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ {conn.ClientId} пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ?");
+            // return; // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
         }
 
-        Debug.Log($"SPAWNER: Попытка создать персонажа для ID {conn.ClientId}...");
+        Debug.Log($"SPAWNER: пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ ID {conn.ClientId}...");
 
         if (playerPrefab == null)
         {
-            Debug.LogError("ОШИБКА: В GameSpawnManager не назначен Player Prefab!");
+            Debug.LogError("пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅ GameSpawnManager пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ Player Prefab!");
             return;
         }
 
         Transform pSpawn = GetPlayerSpawnPoint(conn.ClientId);
         Transform fSpawn = GetFruitSpawnPoint(conn.ClientId);
 
-        // --- СПАУН ИГРОКА ---
+        // --- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---
         NetworkObject playerObj = Instantiate(playerPrefab, pSpawn.position, pSpawn.rotation);
         ServerManager.Spawn(playerObj, conn);
-        Debug.Log($"SPAWNER: Игрок создан на координатах {pSpawn.position}");
+        Debug.Log($"SPAWNER: пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {pSpawn.position}");
 
-        // --- НАСТРОЙКА PlayerInfo ---
+        // --- РќР°СЃС‚СЂРѕР№РєР° PlayerInfo ---
         PlayerInfo info = playerObj.GetComponent<PlayerInfo>();
         if (info != null)
         {
             info.SetActorNumber(conn.ClientId);
+            info.SetSpawnPoint(pSpawn); // РЎРѕС…СЂР°РЅСЏРµРј С‚РѕС‡РєСѓ СЃРїР°РІРЅР° РґР»СЏ СЂРµСЃРїР°РІРЅР°
         }
 
-        // --- СПАУН ФРУКТА ---
+        // --- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---
         if (lifeFruitPrefab != null)
         {
             NetworkObject fruitObj = Instantiate(lifeFruitPrefab, fSpawn.position, fSpawn.rotation);
@@ -96,7 +95,7 @@ public class GameSpawnManager : NetworkBehaviour
     {
         if (playerSpawnPoints == null || playerSpawnPoints.Count == 0)
         {
-            Debug.LogWarning("Нет точек спауна! Спауним в (0, 1, 0)");
+            Debug.LogWarning("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ (0, 1, 0)");
             return transform;
         }
         return playerSpawnPoints[id % playerSpawnPoints.Count];

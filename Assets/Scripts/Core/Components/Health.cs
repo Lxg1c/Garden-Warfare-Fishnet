@@ -1,9 +1,12 @@
-﻿using Core.Interfaces;
+﻿using System;
+using Core.Interfaces;
 using Core.Settings;
+using FischlWorks_FogWar;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using UnityEngine;
 using UI.HUD.HealthBar;
+using Player;
 
 namespace Core.Components
 {
@@ -14,14 +17,22 @@ namespace Core.Components
         [Header("Settings")]
         [SerializeField] private float initialHealth = 100f;
         [SerializeField] private float maxHealth = 100f;
-        
+
+        private csFogVisibilityAgent _agent;
+
         public float MaxHealth => maxHealth;
+        public bool IsDead { get; private set; }
 
         [Header("UI Settings")]
         [Tooltip("Перетащите сюда префаб HealthBarCanvas")]
-        [SerializeField] private GameObject healthBarPrefab; 
-        
+        [SerializeField] private GameObject healthBarPrefab;
+
         private HealthBarController _healthBarController;
+        
+        private CharacterController _characterController;
+        private Renderer[] _renderers;
+        private Collider[] _colliders;
+        private MonoBehaviour[] _movementScripts;
 
         // Events
         public delegate void DamageEvent(Transform attacker);
@@ -30,19 +41,35 @@ namespace Core.Components
         public delegate void DeathEvent();
         public event DeathEvent OnDeath;
 
+        public delegate void ReviveEvent();
+        public event ReviveEvent OnRevive;
+
+        private void Awake()
+        {
+            // Кэшируем компоненты сразу в Awake - до любых сетевых событий
+            CacheComponents();
+            _agent = GetComponent<csFogVisibilityAgent>();
+        }
+
         private void OnDestroy()
         {
             _сurrentHealth.OnChange -= OnHealthChanged;
         }
-        
+
+        private void FixedUpdate()
+        {
+            // Скрываем/показываем HealthBar в зависимости от видимости в тумане войны
+            if (_agent == null || _healthBarController == null) return;
+
+            bool isVisible = _agent.GetVisibility();
+            _healthBarController.gameObject.SetActive(isVisible);
+        }
+
         public override void OnStartClient()
         {
             base.OnStartClient();
-            // Подписка на OnChange уже сделана в OnStartNetwork(), не дублируем
-
             InitializeHealthBar();
         }
-
 
         public override void OnStartNetwork()
         {
@@ -50,7 +77,34 @@ namespace Core.Components
             if (maxHealth <= 0) maxHealth = initialHealth;
 
             _сurrentHealth.Value = initialHealth;
+            IsDead = false;
+
+            // Перекэшируем на случай если Awake не сработал (late join)
+            if (_renderers == null || _renderers.Length == 0)
+            {
+                CacheComponents();
+            }
+
             base.OnStartNetwork();
+        }
+
+        private void CacheComponents()
+        {
+            _characterController = GetComponent<CharacterController>();
+            _renderers = GetComponentsInChildren<Renderer>();
+            _colliders = GetComponentsInChildren<Collider>();
+
+            // Находим скрипты которые нужно отключить при смерти
+            var scriptsToDisable = new System.Collections.Generic.List<MonoBehaviour>();
+            var playerMovement = GetComponent<PlayerMovement>();
+            if (playerMovement != null) scriptsToDisable.Add(playerMovement);
+            var weaponController = GetComponent<Weapon.WeaponController>();
+            if (weaponController != null) scriptsToDisable.Add(weaponController);
+            _movementScripts = scriptsToDisable.ToArray();
+
+            Debug.Log($"[Health] {name} CacheComponents: CharCtrl={_characterController != null}, " +
+                      $"Renderers={_renderers?.Length ?? 0}, Colliders={_colliders?.Length ?? 0}, " +
+                      $"Scripts={_movementScripts?.Length ?? 0}");
         }
 
         public override void OnStopNetwork()
@@ -162,20 +216,71 @@ namespace Core.Components
         [ObserversRpc]
         private void ObserversRpc_OnDeath()
         {
+            Debug.Log($"[Health] {name} ObserversRpc_OnDeath called");
+
+            IsDead = true;
+
             // Вызываем событие смерти
             OnDeath?.Invoke();
-            
+
             // Уничтожаем HealthBar
             if (_healthBarController != null)
             {
                 Destroy(_healthBarController.gameObject);
                 _healthBarController = null;
             }
-            
-            var renderer = GetComponent<Renderer>();
-            if (renderer != null) renderer.enabled = false;
-            var collider = GetComponent<Collider>();
-            if (collider != null) collider.enabled = false;
+
+            // Отключаем весь GameObject
+            gameObject.SetActive(false);
+
+            Debug.Log($"[Health] {name} died - GameObject disabled");
+        }
+
+        [ObserversRpc]
+        private void ObserversRpc_OnRevive(Vector3 position, Quaternion rotation)
+        {
+            Debug.Log($"[Health] {name} ObserversRpc_OnRevive called at {position}");
+
+            IsDead = false;
+
+            // Сначала телепортируем (пока объект ещё выключен)
+            // Отключаем CharacterController чтобы можно было изменить позицию
+            if (_characterController != null)
+            {
+                _characterController.enabled = false;
+            }
+
+            transform.SetPositionAndRotation(position, rotation);
+
+            // Включаем весь GameObject
+            gameObject.SetActive(true);
+
+            // Включаем CharacterController обратно
+            if (_characterController != null)
+            {
+                _characterController.enabled = true;
+            }
+
+            // Пересоздаем HealthBar
+            InitializeHealthBar();
+
+            // Вызываем событие возрождения
+            OnRevive?.Invoke();
+
+            Debug.Log($"[Health] {name} revived - GameObject enabled at {position}");
+        }
+
+        /// <summary>
+        /// Вызывается сервером для возрождения игрока
+        /// </summary>
+        [Server]
+        public void Revive(Vector3 respawnPosition, Quaternion respawnRotation)
+        {
+            // Восстанавливаем здоровье
+            _сurrentHealth.Value = maxHealth;
+
+            // Синхронизируем респавн на всех клиентах
+            ObserversRpc_OnRevive(respawnPosition, respawnRotation);
         }
 
         private void OnHealthChanged(float oldVal, float newVal, bool asServer)

@@ -24,7 +24,7 @@ namespace AI.Camp
                 _units.Add(neutral);
                 
                 // Регистрируем юнит в Camp
-                if (IsServer && _camp != null)
+                if (IsServerInitialized && _camp != null)
                 {
                     _camp.RegisterUnit(neutral);
                 }

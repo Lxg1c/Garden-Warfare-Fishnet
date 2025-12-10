@@ -341,6 +341,9 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 8326548913328295048}
   initialHealth: 100
   maxHealth: 100
+  deathVisualDelay: 0
+  deathEffectPrefab: {fileID: 0}
+  deathAnimationTrigger: Death
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &6540299870522062612
 MonoBehaviour:

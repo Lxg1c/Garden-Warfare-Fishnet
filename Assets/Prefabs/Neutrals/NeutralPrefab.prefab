@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 8639578602781137855}
   - component: {fileID: 8323966917485891107}
   - component: {fileID: 979464400910819283}
+  - component: {fileID: 3564249430932317508}
   m_Layer: 0
   m_Name: NeutralPrefab
   m_TagString: Untagged
@@ -151,12 +152,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92df4ea4b2f64331ab5d0c94ac94b646, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.Components.Health
-  _componentIndexCache: 255
+  _componentIndexCache: 0
   _addedNetworkObject: {fileID: 979464400910819283}
-  _networkObjectCache: {fileID: 0}
+  _networkObjectCache: {fileID: 979464400910819283}
   initialHealth: 100
   maxHealth: 100
-  healthBarPrefab: {fileID: 0}
+  healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &8323966917485891107
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -169,6 +170,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4405b834eac56f042aa20fa6220485f0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TestNeutral
+  _componentIndexCache: 1
+  _addedNetworkObject: {fileID: 979464400910819283}
+  _networkObjectCache: {fileID: 979464400910819283}
   attackRange: 2
   chaseRange: 10
   detectionRange: 3
@@ -197,7 +201,9 @@ MonoBehaviour:
   <ComponentIndex>k__BackingField: 0
   <PredictedSpawn>k__BackingField: {fileID: 0}
   <PredictedOwner>k__BackingField: {fileID: 0}
-  NetworkBehaviours: []
+  NetworkBehaviours:
+  - {fileID: 8639578602781137855}
+  - {fileID: 8323966917485891107}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
   RuntimeParentNetworkBehaviour: {fileID: 0}
@@ -208,7 +214,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: 0
+  _initializedTimestamp: -8584362485100714031
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -223,12 +229,27 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 65535
+  <PrefabId>k__BackingField: 12
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 14397002884497370199
   SceneId: 0
   SerializedTransformProperties:
-    Position: {x: 0, y: 0, z: 0}
-    Rotation: {x: 0, y: 0, z: 0, w: 0}
-    Scale: {x: 0, y: 0, z: 0}
-    IsValid: 0
+    Position: {x: 0, y: 1, z: 0.96}
+    Rotation: {x: -0, y: -0, z: -0, w: 1}
+    Scale: {x: 1, y: 1, z: 1}
+    IsValid: 1
+--- !u!114 &3564249430932317508
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 276308323977331136}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 985add12ee4836e40b7241671b1d892c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FischlWorks_FogWar.csFogVisibilityAgent
+  fogWar: {fileID: 0}
+  visibility: 0
+  additionalRadius: 0

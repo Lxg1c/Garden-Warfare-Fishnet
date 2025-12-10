@@ -10,11 +10,9 @@ namespace Weapon.Projectile
         [Header("Bullet Settings")]
         [SerializeField] private int damage = 10;
         [SerializeField] private float lifetime = 3f;
-        [SerializeField] private float speed = 20f;
         [SerializeField] private GameObject impactEffect;
 
         private Transform _owner;
-        private Rigidbody _rb;
         private NetworkObject _ownerNetworkObject;
 
         public void SetOwner(Transform owner)
@@ -31,7 +29,6 @@ namespace Weapon.Projectile
         public override void OnStartNetwork()
         {
             base.OnStartNetwork();
-            _rb = GetComponent<Rigidbody>();
 
             if (IsServerInitialized)
             {
@@ -50,10 +47,12 @@ namespace Weapon.Projectile
 
             if (other.TryGetComponent(out Health hp))
             {
+                Debug.Log("Пытаемся нанести урон");
                 hp.TakeDamage(damage, _owner, _ownerNetworkObject);
             }
             else
             {
+                Debug.Log("Нет компонента здоровья");
                 SpawnImpactEffect();
             }
 

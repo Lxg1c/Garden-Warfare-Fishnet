@@ -32,7 +32,13 @@ namespace Core.Settings
             else
             {
                 Destroy(gameObject);
+                return;
             }
+
+            // Очищаем static словари при старте (важно для редактора!)
+            RespawnAllowed.Clear();
+            PlayerLifeFruits.Clear();
+            Debug.Log("[RespawnManager] Awake - cleared static dictionaries");
         }
 
         public override void OnStartNetwork()
@@ -40,7 +46,10 @@ namespace Core.Settings
             base.OnStartNetwork();
             if (IsServerInitialized)
             {
-                Debug.Log("RespawnManager started on server");
+                // Очищаем ещё раз на сервере для надёжности
+                RespawnAllowed.Clear();
+                PlayerLifeFruits.Clear();
+                Debug.Log("[RespawnManager] OnStartServer - dictionaries reset");
             }
         }
 
@@ -107,22 +116,41 @@ namespace Core.Settings
 
         public void StartRespawn(GameObject deadObject)
         {
+            Debug.Log($"[RespawnManager] StartRespawn called for {deadObject?.name}");
+
             if (!IsServerInitialized)
+            {
+                Debug.LogWarning("[RespawnManager] Not server - ignoring");
                 return;
+            }
 
             if (!IsPlayer(deadObject))
+            {
+                Debug.Log($"[RespawnManager] {deadObject?.name} is not a player - ignoring");
                 return;
+            }
 
             var netObj = deadObject.GetComponent<NetworkObject>();
             if (netObj == null)
+            {
+                Debug.LogError("[RespawnManager] No NetworkObject!");
                 return;
+            }
 
             int ownerId = netObj.OwnerId;
+            Debug.Log($"[RespawnManager] Player {ownerId} died. RespawnAllowed={IsRespawnAllowed(ownerId)}");
 
             if (!IsRespawnAllowed(ownerId))
             {
-                Debug.Log($"Player {ownerId} cannot respawn — respawn restricted.");
-                StartCoroutine(KickPlayerCoroutine(ownerId));
+                Debug.Log($"Player {ownerId} cannot respawn — LifeFruit destroyed!");
+
+                // Уведомляем игрока что он выбыл из игры
+                if (NetworkManager.ServerManager.Clients.TryGetValue(ownerId, out var conn))
+                {
+                    TargetRpc_OnPlayerEliminated(conn);
+                }
+
+                StartCoroutine(HandleEliminatedPlayer(deadObject, ownerId));
                 return;
             }
 
@@ -136,45 +164,51 @@ namespace Core.Settings
             if (deadPlayer == null)
                 yield break;
 
-            Transform respawnPoint = GetRespawnPointForPlayer(deadPlayer, ownerId);
-            if (respawnPoint == null)
-            {
-                Debug.LogError("[RespawnManager] Respawn point not found!");
-                yield break;
-            }
+            // Получаем позицию респавна (используем сохраненную позицию, а не Transform)
+            var (respawnPos, respawnRot) = GetRespawnPositionForPlayer(deadPlayer, ownerId);
 
-            var playerInput = deadPlayer.GetComponent<PlayerInput>();
-            if (playerInput != null)
-                playerInput.enabled = false;
-            
-            deadPlayer.transform.SetPositionAndRotation(respawnPoint.position, respawnPoint.rotation);
-            
-            var rb = deadPlayer.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.linearVelocity = Vector3.zero;
-                rb.angularVelocity = Vector3.zero;
-            }
-            
-            deadPlayer.SetActive(true);
-            
-            if (playerInput != null)
-                playerInput.enabled = true;
-            
+            // Используем Health.Revive() который синхронизирует респавн на всех клиентах
             var health = deadPlayer.GetComponent<Health>();
             if (health != null)
-                health.SetHealth(health.GetMaxHealth());
-
-            Debug.Log($"[Server] Player {ownerId} respawned at {respawnPoint.name}");
+            {
+                health.Revive(respawnPos, respawnRot);
+                Debug.Log($"[Server] Player {ownerId} respawned at {respawnPos}");
+            }
+            else
+            {
+                Debug.LogError($"[RespawnManager] Player {ownerId} has no Health component!");
+            }
         }
 
-        private IEnumerator KickPlayerCoroutine(int playerId)
+        /// <summary>
+        /// Уведомляет конкретного игрока о том что он выбыл (LifeFruit уничтожен)
+        /// </summary>
+        [TargetRpc]
+        private void TargetRpc_OnPlayerEliminated(FishNet.Connection.NetworkConnection conn)
         {
-            Debug.Log($"[Server] Kicking player {playerId} from match");
-            yield return new WaitForSeconds(2f);
-            
-            // Здесь логика выкидывания игрока из матча
-            // Например: NetworkManager.ServerManager.Kick(client, reason);
+            Debug.Log("[Client] You have been eliminated! Your LifeFruit was destroyed.");
+
+            // Здесь можно показать UI "Game Over" или подобное
+            // Например: GameOverUI.Show("Your LifeFruit was destroyed!");
+        }
+
+        /// <summary>
+        /// Обрабатывает выбывшего игрока на сервере
+        /// </summary>
+        private IEnumerator HandleEliminatedPlayer(GameObject deadPlayer, int playerId)
+        {
+            Debug.Log($"[Server] Player {playerId} eliminated - LifeFruit destroyed");
+
+            yield return new WaitForSeconds(3f);
+
+            // Игрок остается в игре как наблюдатель или выкидывается
+            // Пока просто оставляем его "мертвым" - он видит игру но не может играть
+
+            // Опционально: кикнуть игрока из матча
+            // if (NetworkManager.ServerManager.Clients.TryGetValue(playerId, out var conn))
+            // {
+            //     conn.Kick(FishNet.Managing.Server.KickReason.Unset, "LifeFruit destroyed");
+            // }
         }
 
         // ============================
@@ -212,6 +246,27 @@ namespace Core.Settings
                 return GameSpawnManager.Instance.GetPlayerSpawnPoint(ownerId);
 
             return transform; // Fallback
+        }
+
+        /// <summary>
+        /// Получает позицию и поворот для респавна игрока
+        /// </summary>
+        private (Vector3 position, Quaternion rotation) GetRespawnPositionForPlayer(GameObject player, int ownerId)
+        {
+            var pi = player.GetComponent<PlayerInfo>();
+            if (pi != null && pi.SpawnPosition != Vector3.zero)
+            {
+                return (pi.SpawnPosition, pi.SpawnRotation);
+            }
+
+            if (GameSpawnManager.Instance != null)
+            {
+                Transform spawnPoint = GameSpawnManager.Instance.GetPlayerSpawnPoint(ownerId);
+                if (spawnPoint != null)
+                    return (spawnPoint.position, spawnPoint.rotation);
+            }
+
+            return (transform.position, Quaternion.identity); // Fallback
         }
 
         public override void OnStopNetwork()

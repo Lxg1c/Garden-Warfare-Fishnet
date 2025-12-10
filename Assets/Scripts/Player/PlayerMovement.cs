@@ -65,6 +65,9 @@ namespace Player
         {
             if (!IsOwner) return;
 
+            // Проверяем что CharacterController включен (может быть отключен при смерти)
+            if (_characterController == null || !_characterController.enabled) return;
+
             ProcessMovement();
             ApplyGravity();
             UpdateAnimator();
