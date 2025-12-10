@@ -49,6 +49,7 @@ namespace Gameplay.TurretPlant
         private WildSubState _wildSubState = WildSubState.Idle;
 
         private Collider _collider;
+        private PlantSpawner _spawner; // Спавнер который создал это растение
 
         // ==================
         // Events
@@ -411,8 +412,24 @@ namespace Gameplay.TurretPlant
                 _collider.enabled = false;
             }
 
+            // Уведомляем спавнер что растение забрали
+            if (_spawner != null)
+            {
+                _spawner.OnPlantPickedUp();
+                _spawner = null; // Больше не связаны со спавнером
+            }
+
             Debug.Log($"[TurretPlant] Picked up by player {playerId}");
             return true;
+        }
+
+        /// <summary>
+        /// Устанавливает спавнер который создал это растение
+        /// </summary>
+        [Server]
+        public void SetSpawner(PlantSpawner spawner)
+        {
+            _spawner = spawner;
         }
 
         [Server]
@@ -497,6 +514,13 @@ namespace Gameplay.TurretPlant
             if (_state.Value == TurretPlantState.Planted)
             {
                 TurretPlantManager.Instance?.UnregisterPlantedTurret(_plantedOwnerId.Value, this);
+            }
+
+            // Уведомляем спавнер если растение было уничтожено (в Wild состоянии)
+            if (_spawner != null)
+            {
+                _spawner.OnPlantDestroyed();
+                _spawner = null;
             }
 
             StartCoroutine(DelayedDespawn());
