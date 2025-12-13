@@ -157,6 +157,9 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 979464400910819283}
   initialHealth: 100
   maxHealth: 100
+  enableRegen: 0
+  regenPerSecond: 5
+  regenDelay: 3
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &8323966917485891107
 MonoBehaviour:

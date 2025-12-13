@@ -26,6 +26,16 @@ namespace Gameplay.TurretPlant
             damage = newDamage;
         }
 
+        public Transform GetOwnerTransform()
+        {
+            return _turretOwner;
+        }
+
+        public int GetOwnerId()
+        {
+            return _turretOwnerId;
+        }
+
         public override void OnStartNetwork()
         {
             base.OnStartNetwork();

@@ -8,13 +8,13 @@ namespace Player.Components
     {
         private readonly SyncVar<int> _actorNumber = new SyncVar<int>();
 
-        // Сохраняем позицию спавна (Transform может быть уничтожен, поэтому храним данные)
-        private Vector3 _spawnPosition;
-        private Quaternion _spawnRotation;
+        // Синхронизируем позицию спавна (SyncVar чтобы работало и на сервере)
+        private readonly SyncVar<Vector3> _syncSpawnPosition = new SyncVar<Vector3>();
+        private readonly SyncVar<Quaternion> _syncSpawnRotation = new SyncVar<Quaternion>();
 
         public Transform SpawnPoint { get; private set; }
-        public Vector3 SpawnPosition => _spawnPosition;
-        public Quaternion SpawnRotation => _spawnRotation;
+        public Vector3 SpawnPosition => _syncSpawnPosition.Value;
+        public Quaternion SpawnRotation => _syncSpawnRotation.Value;
 
         private void Awake()
         {
@@ -58,18 +58,51 @@ namespace Player.Components
             }
         }
 
+        // Временные переменные для хранения до сетевой инициализации
+        private Vector3 _pendingSpawnPosition;
+        private Quaternion _pendingSpawnRotation;
+        private bool _hasPendingSpawn;
+
+        public override void OnStartNetwork()
+        {
+            base.OnStartNetwork();
+
+            // Если была отложенная позиция спавна - применяем её
+            if (_hasPendingSpawn && IsServerInitialized)
+            {
+                _syncSpawnPosition.Value = _pendingSpawnPosition;
+                _syncSpawnRotation.Value = _pendingSpawnRotation;
+                _hasPendingSpawn = false;
+                Debug.Log($"[PlayerInfo] Applied pending SpawnPosition: {_syncSpawnPosition.Value}");
+            }
+        }
+
         /// <summary>
         /// Устанавливает точку спавна для игрока (вызывается при первом спавне)
+        /// Может быть вызван до или после сетевой инициализации
         /// </summary>
         public void SetSpawnPoint(Transform spawnPoint)
         {
             SpawnPoint = spawnPoint;
-            if (spawnPoint != null)
+            if (spawnPoint == null) return;
+
+            Vector3 pos = spawnPoint.position;
+            Quaternion rot = spawnPoint.rotation;
+
+            if (IsServerInitialized)
             {
-                _spawnPosition = spawnPoint.position;
-                _spawnRotation = spawnPoint.rotation;
+                _syncSpawnPosition.Value = pos;
+                _syncSpawnRotation.Value = rot;
+                Debug.Log($"[PlayerInfo] SpawnPoint set to {pos}");
             }
-            Debug.Log($"[PlayerInfo] SpawnPoint set to {_spawnPosition}");
+            else
+            {
+                // Сохраняем для отложенной инициализации
+                _pendingSpawnPosition = pos;
+                _pendingSpawnRotation = rot;
+                _hasPendingSpawn = true;
+                Debug.Log($"[PlayerInfo] SpawnPoint pending: {pos}");
+            }
         }
 
         /// <summary>
@@ -77,9 +110,19 @@ namespace Player.Components
         /// </summary>
         public void SetSpawnPosition(Vector3 position, Quaternion rotation)
         {
-            _spawnPosition = position;
-            _spawnRotation = rotation;
-            Debug.Log($"[PlayerInfo] SpawnPosition set to {_spawnPosition}");
+            if (IsServerInitialized)
+            {
+                _syncSpawnPosition.Value = position;
+                _syncSpawnRotation.Value = rotation;
+                Debug.Log($"[PlayerInfo] SpawnPosition set to {position}");
+            }
+            else
+            {
+                _pendingSpawnPosition = position;
+                _pendingSpawnRotation = rotation;
+                _hasPendingSpawn = true;
+                Debug.Log($"[PlayerInfo] SpawnPosition pending: {position}");
+            }
         }
     }
 }

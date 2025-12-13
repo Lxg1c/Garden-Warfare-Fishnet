@@ -68,7 +68,7 @@ CharacterController:
   m_Enabled: 1
   serializedVersion: 3
   m_Height: 2
-  m_Radius: 0.5
+  m_Radius: 1
   m_SlopeLimit: 45
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
@@ -342,6 +342,9 @@ MonoBehaviour:
   _networkObjectCache: {fileID: 8326548913328295048}
   initialHealth: 100
   maxHealth: 100
+  enableRegen: 1
+  regenPerSecond: 5
+  regenDelay: 3
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &6540299870522062612
 MonoBehaviour:
@@ -409,6 +412,10 @@ MonoBehaviour:
     m_Bits: 256
   carrySpeedMultiplier: 0.7
   carryOffset: {x: 0, y: 0.5, z: 1.2}
+  lifeFruitCarryOffset: {x: 0, y: 1, z: 0.8}
+  lifeFruitLayer:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0
@@ -662,6 +669,14 @@ PrefabInstance:
     - target: {fileID: -8679921383154817045, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -5861409178561632961, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1.062
+      objectReference: {fileID: 0}
+    - target: {fileID: -5861409178561632961, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -0.032
       objectReference: {fileID: 0}
     - target: {fileID: -5861409178561632961, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
       propertyPath: m_LocalRotation.w

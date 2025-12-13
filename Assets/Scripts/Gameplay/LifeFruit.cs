@@ -1,5 +1,6 @@
 ﻿using Core.Components;
 using FishNet.Object;
+using FishNet.Object.Synchronizing;
 using UnityEngine;
 using Core.Settings;
 using FischlWorks_FogWar;
@@ -7,6 +8,13 @@ using Player;
 
 namespace Gameplay
 {
+    public enum LifeFruitState
+    {
+        Planted,    // Посажен на базе
+        Carried,    // Несут
+        Dropped     // Брошен (можно подобрать)
+    }
+
     [RequireComponent(typeof(Health))]
     [RequireComponent(typeof(csFogVisibilityAgent))]
     public class LifeFruit : NetworkBehaviour
@@ -14,13 +22,62 @@ namespace Gameplay
         [Header("Planting Zone")]
         [SerializeField] private GameObject plantingZoneVisual;
 
+        [Header("Pickup Settings")]
+        [SerializeField] private float pickupTime = 2f; // Время для подбора чужого LifeFruit
+
+        // ==================
+        // Синхронизация
+        // ==================
+
+        private readonly SyncVar<LifeFruitState> _state = new(LifeFruitState.Planted);
+        private readonly SyncVar<int> _carrierId = new(-1);
+
+        // ==================
+        // Локальные данные
+        // ==================
+
         private Health _health;
         private csFogVisibilityAgent _visibilityAgent;
+        private Collider _collider;
+
+        // ==================
+        // Properties
+        // ==================
+
+        public LifeFruitState State => _state.Value;
+        public int CarrierId => _carrierId.Value;
+
+        /// <summary>
+        /// Можно подобрать если брошен или чужой посаженный (не свой!)
+        /// </summary>
+        public bool CanBePickedUp(int playerId)
+        {
+            // Свой LifeFruit нельзя подбирать
+            if (OwnerId == playerId) return false;
+
+            // Можно подобрать если брошен
+            if (_state.Value == LifeFruitState.Dropped) return true;
+
+            // Можно подобрать чужой посаженный
+            if (_state.Value == LifeFruitState.Planted) return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Время подбора (мгновенно если брошен, долго если посажен)
+        /// </summary>
+        public float GetPickupTime(int playerId)
+        {
+            if (_state.Value == LifeFruitState.Dropped) return 0.5f;
+            return pickupTime;
+        }
 
         private void Awake()
         {
             _health = GetComponent<Health>();
             _visibilityAgent = GetComponent<csFogVisibilityAgent>();
+            _collider = GetComponent<Collider>();
 
             _health.OnDamaged += OnDamaged;
             _health.OnDeath += OnDeath;
@@ -119,14 +176,138 @@ namespace Gameplay
             }
         }
 
+        // ==================
+        // PICKUP/DROP/PLANT
+        // ==================
+
+        /// <summary>
+        /// Подбирает LifeFruit (вызывается сервером)
+        /// </summary>
+        [Server]
+        public bool TryPickup(int playerId)
+        {
+            if (!CanBePickedUp(playerId)) return false;
+
+            _state.Value = LifeFruitState.Carried;
+            _carrierId.Value = playerId;
+
+            // Отключаем коллайдер
+            if (_collider != null)
+            {
+                _collider.enabled = false;
+            }
+
+            // Отключаем респавн для бывшего владельца
+            RespawnManager.SetRespawnEnabled(OwnerId, false);
+
+            Debug.Log($"[Server] LifeFruit({OwnerId}) picked up by player {playerId}");
+            return true;
+        }
+
+        /// <summary>
+        /// Привязывает LifeFruit к игроку
+        /// </summary>
+        [Server]
+        public void AttachToPlayer(Transform playerTransform, Vector3 localOffset)
+        {
+            if (_state.Value != LifeFruitState.Carried) return;
+
+            transform.SetParent(playerTransform);
+            transform.localPosition = localOffset;
+            transform.localRotation = Quaternion.identity;
+
+            AttachToPlayerObserversRpc(playerTransform.GetComponent<NetworkObject>(), localOffset);
+        }
+
+        [ObserversRpc]
+        private void AttachToPlayerObserversRpc(NetworkObject playerNetObj, Vector3 localOffset)
+        {
+            if (playerNetObj == null) return;
+
+            transform.SetParent(playerNetObj.transform);
+            transform.localPosition = localOffset;
+            transform.localRotation = Quaternion.identity;
+        }
+
+        /// <summary>
+        /// Бросает LifeFruit
+        /// </summary>
+        [Server]
+        public void Drop(Vector3 dropPosition)
+        {
+            if (_state.Value != LifeFruitState.Carried) return;
+
+            transform.SetParent(null);
+            transform.position = dropPosition;
+            _state.Value = LifeFruitState.Dropped;
+            _carrierId.Value = -1;
+
+            // Включаем коллайдер
+            if (_collider != null)
+            {
+                _collider.enabled = true;
+            }
+
+            DetachObserversRpc();
+
+            Debug.Log($"[Server] LifeFruit({OwnerId}) dropped at {dropPosition}");
+        }
+
+        [ObserversRpc]
+        private void DetachObserversRpc()
+        {
+            transform.SetParent(null);
+        }
+
+        /// <summary>
+        /// Сажает LifeFruit на базе нового владельца
+        /// </summary>
+        [Server]
+        public void PlantForNewOwner(int newOwnerId, Vector3 position)
+        {
+            if (_state.Value != LifeFruitState.Carried) return;
+
+            transform.SetParent(null);
+            transform.position = position;
+            _state.Value = LifeFruitState.Planted;
+            _carrierId.Value = -1;
+
+            // Меняем владельца
+            int oldOwnerId = OwnerId;
+            GiveOwnership(NetworkManager.ServerManager.Clients[newOwnerId]);
+
+            // Включаем коллайдер
+            if (_collider != null)
+            {
+                _collider.enabled = true;
+            }
+
+            // Включаем респавн для нового владельца
+            RespawnManager.SetRespawnEnabled(newOwnerId, true);
+
+            // Восстанавливаем здоровье
+            if (_health != null)
+            {
+                _health.SetHealth(_health.GetMaxHealth());
+            }
+
+            DetachObserversRpc();
+
+            Debug.Log($"[Server] LifeFruit planted for new owner {newOwnerId} (was {oldOwnerId}) at {position}");
+        }
+
+        // ==================
+        // DAMAGE HANDLING
+        // ==================
+
         private void OnDamaged(Transform attacker)
         {
             if (!IsServerInitialized) return;
-            
+
             if (attacker != null)
             {
                 var attackerNo = attacker.GetComponent<NetworkObject>();
-                
+
                 if (attackerNo != null && attackerNo.OwnerId == OwnerId)
                 {
                     Debug.Log($"[Server] LifeFruit({OwnerId}) ignored self damage");
@@ -134,7 +315,7 @@ namespace Gameplay
                     return;
                 }
             }
-            
+
             Debug.Log($"[Server] LifeFruit({OwnerId}) took damage from {attacker?.name}");
         }
 

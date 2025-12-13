@@ -17,12 +17,17 @@ namespace Player
         [Header("Carry Settings")]
         [SerializeField] private float carrySpeedMultiplier = 0.7f;
         [SerializeField] private Vector3 carryOffset = new Vector3(0, 0.5f, 1.2f);
+        [SerializeField] private Vector3 lifeFruitCarryOffset = new Vector3(0, 1f, 0.8f);
+
+        [Header("LifeFruit Layer")]
+        [SerializeField] private LayerMask lifeFruitLayer;
 
         // ==================
         // Синхронизация
         // ==================
 
         private readonly SyncVar<NetworkObject> _carriedPlantNetObj = new();
+        private readonly SyncVar<NetworkObject> _carriedLifeFruitNetObj = new();
 
         // ==================
         // Локальные данные
@@ -33,17 +38,25 @@ namespace Player
         private WeaponController _weaponController;
 
         private TurretPlant _nearbyPlant;
+        private LifeFruit _nearbyLifeFruit;
         private float _digProgress;
+        private float _lifeFruitDigProgress;
         private float _originalSpeed;
 
         // Кэш для LifeFruit владельца
         private LifeFruit _myLifeFruit;
 
+        // Что сейчас выкапываем
+        private enum DigTarget { None, Plant, LifeFruit }
+        private DigTarget _currentDigTarget = DigTarget.None;
+
         // ==================
         // Properties
         // ==================
 
-        public bool IsCarrying => _carriedPlantNetObj.Value != null;
+        public bool IsCarryingPlant => _carriedPlantNetObj.Value != null;
+        public bool IsCarryingLifeFruit => _carriedLifeFruitNetObj.Value != null;
+        public bool IsCarrying => IsCarryingPlant || IsCarryingLifeFruit;
 
         // ==================
         // Lifecycle
@@ -89,7 +102,12 @@ namespace Player
             if (IsCarrying)
             {
                 HandleCarryingInput();
-                ShowPlantingZone();
+
+                // Показываем зону только если несём растение (не LifeFruit)
+                if (IsCarryingPlant)
+                {
+                    ShowPlantingZone();
+                }
             }
             else
             {
@@ -98,15 +116,8 @@ namespace Player
             }
         }
 
-        private void LateUpdate()
-        {
-            if (!IsServerStarted) return;
-
-            if (IsCarrying)
-            {
-                UpdateCarriedPlantPosition();
-            }
-        }
+        // LateUpdate больше не нужен - растение теперь child объект игрока
+        // и позиция синхронизируется автоматически
 
         // ==================
         // DIGGING (выкапывание)
@@ -114,28 +125,73 @@ namespace Player
 
         private void HandleDigInput()
         {
+            // Ищем ближайший объект для взаимодействия
             _nearbyPlant = FindNearbyWildPlant();
+            _nearbyLifeFruit = FindNearbyLifeFruit();
 
-            if (_nearbyPlant == null)
+            // Определяем что ближе - растение или LifeFruit
+            float plantDist = _nearbyPlant != null
+                ? Vector3.Distance(transform.position, _nearbyPlant.transform.position)
+                : float.MaxValue;
+            float lifeFruitDist = _nearbyLifeFruit != null
+                ? Vector3.Distance(transform.position, _nearbyLifeFruit.transform.position)
+                : float.MaxValue;
+
+            // Определяем цель
+            DigTarget newTarget = DigTarget.None;
+            if (plantDist < lifeFruitDist && _nearbyPlant != null)
+            {
+                newTarget = DigTarget.Plant;
+            }
+            else if (_nearbyLifeFruit != null)
+            {
+                newTarget = DigTarget.LifeFruit;
+            }
+
+            // Сбрасываем прогресс если сменилась цель
+            if (newTarget != _currentDigTarget)
             {
                 _digProgress = 0f;
+                _lifeFruitDigProgress = 0f;
+                _currentDigTarget = newTarget;
+            }
+
+            if (_currentDigTarget == DigTarget.None)
+            {
                 return;
             }
 
             // Зажатие E
             if (_input.Player.Interact.IsPressed())
             {
-                _digProgress += Time.deltaTime;
-
-                if (_digProgress >= digTime)
+                if (_currentDigTarget == DigTarget.Plant)
                 {
-                    PickupPlantServerRpc(_nearbyPlant.NetworkObject);
-                    _digProgress = 0f;
+                    _digProgress += Time.deltaTime;
+
+                    if (_digProgress >= digTime)
+                    {
+                        PickupPlantServerRpc(_nearbyPlant.NetworkObject);
+                        _digProgress = 0f;
+                        _currentDigTarget = DigTarget.None;
+                    }
+                }
+                else if (_currentDigTarget == DigTarget.LifeFruit)
+                {
+                    float requiredTime = _nearbyLifeFruit.GetPickupTime(OwnerId);
+                    _lifeFruitDigProgress += Time.deltaTime;
+
+                    if (_lifeFruitDigProgress >= requiredTime)
+                    {
+                        PickupLifeFruitServerRpc(_nearbyLifeFruit.NetworkObject);
+                        _lifeFruitDigProgress = 0f;
+                        _currentDigTarget = DigTarget.None;
+                    }
                 }
             }
             else
             {
                 _digProgress = 0f;
+                _lifeFruitDigProgress = 0f;
             }
         }
 
@@ -163,6 +219,30 @@ namespace Player
             return closest;
         }
 
+        private LifeFruit FindNearbyLifeFruit()
+        {
+            Collider[] hits = Physics.OverlapSphere(transform.position, interactRange, lifeFruitLayer);
+
+            LifeFruit closest = null;
+            float closestDist = float.MaxValue;
+
+            foreach (var c in hits)
+            {
+                var lifeFruit = c.GetComponent<LifeFruit>();
+                if (lifeFruit != null && lifeFruit.CanBePickedUp(OwnerId))
+                {
+                    float dist = Vector3.Distance(transform.position, lifeFruit.transform.position);
+                    if (dist < closestDist)
+                    {
+                        closest = lifeFruit;
+                        closestDist = dist;
+                    }
+                }
+            }
+
+            return closest;
+        }
+
         // ==================
         // CARRYING (переноска)
         // ==================
@@ -172,7 +252,14 @@ namespace Player
             // G - бросить
             if (_input.Player.Drop.WasPressedThisFrame())
             {
-                DropPlantServerRpc();
+                if (IsCarryingPlant)
+                {
+                    DropPlantServerRpc();
+                }
+                else if (IsCarryingLifeFruit)
+                {
+                    DropLifeFruitServerRpc();
+                }
                 return;
             }
 
@@ -180,23 +267,16 @@ namespace Player
             if (_input.Player.Interact.WasPressedThisFrame() || _input.Player.Fire.WasPressedThisFrame())
             {
                 Vector3 plantPos = GetPlantingPosition();
-                TryPlantServerRpc(plantPos);
+
+                if (IsCarryingPlant)
+                {
+                    TryPlantServerRpc(plantPos);
+                }
+                else if (IsCarryingLifeFruit)
+                {
+                    TryPlantLifeFruitServerRpc(plantPos);
+                }
             }
-        }
-
-        private void UpdateCarriedPlantPosition()
-        {
-            if (_carriedPlantNetObj.Value == null) return;
-
-            var plant = _carriedPlantNetObj.Value.GetComponent<TurretPlant>();
-            if (plant == null) return;
-
-            Vector3 carryPos = transform.position +
-                               transform.forward * carryOffset.z +
-                               transform.up * carryOffset.y +
-                               transform.right * carryOffset.x;
-
-            plant.UpdateCarriedPosition(carryPos, transform.rotation);
         }
 
         private Vector3 GetPlantingPosition()
@@ -254,6 +334,10 @@ namespace Player
             if (plant.TryPickup(OwnerId))
             {
                 _carriedPlantNetObj.Value = plantNetObj;
+
+                // Привязываем растение к игроку (делаем дочерним объектом)
+                plant.AttachToPlayer(transform, carryOffset);
+
                 ApplyCarryStateObserversRpc(true);
             }
         }
@@ -267,6 +351,7 @@ namespace Player
             if (plant != null)
             {
                 Vector3 dropPos = transform.position + transform.forward * 1.5f;
+                dropPos.y = 1;
 
                 if (Physics.Raycast(dropPos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f))
                 {
@@ -283,7 +368,7 @@ namespace Player
         [ServerRpc]
         private void TryPlantServerRpc(Vector3 position)
         {
-            if (!IsCarrying) return;
+            if (!IsCarryingPlant) return;
 
             var manager = TurretPlantManager.Instance;
             if (manager == null || !manager.CanPlantAt(OwnerId, position))
@@ -299,6 +384,84 @@ namespace Player
             }
 
             _carriedPlantNetObj.Value = null;
+            ApplyCarryStateObserversRpc(false);
+        }
+
+        // ==================
+        // LIFEFRUIT SERVER RPCs
+        // ==================
+
+        [ServerRpc]
+        private void PickupLifeFruitServerRpc(NetworkObject lifeFruitNetObj)
+        {
+            if (lifeFruitNetObj == null) return;
+            if (IsCarrying) return;
+
+            var lifeFruit = lifeFruitNetObj.GetComponent<LifeFruit>();
+            if (lifeFruit == null || !lifeFruit.CanBePickedUp(OwnerId)) return;
+
+            if (lifeFruit.TryPickup(OwnerId))
+            {
+                _carriedLifeFruitNetObj.Value = lifeFruitNetObj;
+
+                // Привязываем LifeFruit к игроку
+                lifeFruit.AttachToPlayer(transform, lifeFruitCarryOffset);
+
+                ApplyCarryStateObserversRpc(true);
+                Debug.Log($"[Server] Player {OwnerId} picked up LifeFruit of player {lifeFruit.OwnerId}");
+            }
+        }
+
+        [ServerRpc]
+        private void DropLifeFruitServerRpc()
+        {
+            if (!IsCarryingLifeFruit) return;
+
+            var lifeFruit = _carriedLifeFruitNetObj.Value.GetComponent<LifeFruit>();
+            if (lifeFruit != null)
+            {
+                Vector3 dropPos = transform.position + transform.forward * 1.5f;
+
+                if (Physics.Raycast(dropPos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f))
+                {
+                    dropPos = hit.point;
+                }
+
+                lifeFruit.Drop(dropPos);
+            }
+
+            _carriedLifeFruitNetObj.Value = null;
+            ApplyCarryStateObserversRpc(false);
+        }
+
+        [ServerRpc]
+        private void TryPlantLifeFruitServerRpc(Vector3 position)
+        {
+            if (!IsCarryingLifeFruit) return;
+
+            // LifeFruit можно посадить только рядом с уже существующим LifeFruit владельца
+            // ИЛИ на месте своего спавна
+            var myLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(OwnerId);
+
+            // Если у игрока уже есть LifeFruit - сажаем рядом с ним
+            if (myLifeFruit != null)
+            {
+                float dist = Vector3.Distance(position, myLifeFruit.transform.position);
+                if (dist > 10f) // Максимальное расстояние для посадки
+                {
+                    NotifyCannotPlantTargetRpc(Owner);
+                    return;
+                }
+            }
+
+            var lifeFruit = _carriedLifeFruitNetObj.Value.GetComponent<LifeFruit>();
+            if (lifeFruit != null)
+            {
+                // Сажаем LifeFruit и делаем его своим
+                lifeFruit.PlantForNewOwner(OwnerId, position);
+            }
+
+            _carriedLifeFruitNetObj.Value = null;
             ApplyCarryStateObserversRpc(false);
         }
 
@@ -323,7 +486,7 @@ namespace Player
         }
 
         [TargetRpc]
-        private void NotifyCannotPlantTargetRpc(FishNet.Connection.NetworkConnection conn)
+        private void NotifyCannotPlantTargetRpc(FishNet.Connection.NetworkConnection _)
         {
             Debug.Log("[PlayerCarryController] Cannot plant here!");
         }

@@ -1,4 +1,5 @@
 using AI.Neutral;
+using AI.Wave;
 using Core.Components;
 using FishNet.Object;
 using Gameplay.TurretPlant;
@@ -198,21 +199,18 @@ namespace Core.Settings
         /// </summary>
         private IEnumerator HandleEliminatedPlayer(GameObject deadPlayer, int playerId)
         {
-            Debug.Log($"[Server] Player {playerId} eliminated - LifeFruit destroyed");
+            Debug.Log($"[Server] Player {playerId} eliminated - died without LifeFruit");
 
             // Очищаем все турели игрока
             TurretPlantManager.Instance?.CleanupPlayerTurrets(playerId);
+
+            // Уведомляем WaveManager что игрок выбыл (это обновит условия победы)
+            WaveManager.Instance?.OnPlayerEliminated(playerId);
 
             yield return new WaitForSeconds(3f);
 
             // Игрок остается в игре как наблюдатель или выкидывается
             // Пока просто оставляем его "мертвым" - он видит игру но не может играть
-
-            // Опционально: кикнуть игрока из матча
-            // if (NetworkManager.ServerManager.Clients.TryGetValue(playerId, out var conn))
-            // {
-            //     conn.Kick(FishNet.Managing.Server.KickReason.Unset, "LifeFruit destroyed");
-            // }
         }
 
         // ============================
@@ -257,20 +255,28 @@ namespace Core.Settings
         /// </summary>
         private (Vector3 position, Quaternion rotation) GetRespawnPositionForPlayer(GameObject player, int ownerId)
         {
+            // 1. Сначала пробуем PlayerInfo (синхронизированная позиция)
             var pi = player.GetComponent<PlayerInfo>();
             if (pi != null && pi.SpawnPosition != Vector3.zero)
             {
+                Debug.Log($"[RespawnManager] Using PlayerInfo SpawnPosition: {pi.SpawnPosition}");
                 return (pi.SpawnPosition, pi.SpawnRotation);
             }
 
+            // 2. Пробуем GameSpawnManager (если PlayerInfo не настроен)
             if (GameSpawnManager.Instance != null)
             {
                 Transform spawnPoint = GameSpawnManager.Instance.GetPlayerSpawnPoint(ownerId);
                 if (spawnPoint != null)
+                {
+                    Debug.Log($"[RespawnManager] Using GameSpawnManager SpawnPoint: {spawnPoint.position}");
                     return (spawnPoint.position, spawnPoint.rotation);
+                }
             }
 
-            return (transform.position, Quaternion.identity); // Fallback
+            // 3. Fallback - логируем предупреждение
+            Debug.LogWarning($"[RespawnManager] No spawn point found for player {ownerId}! Using RespawnManager position as fallback.");
+            return (transform.position, Quaternion.identity);
         }
 
         public override void OnStopNetwork()

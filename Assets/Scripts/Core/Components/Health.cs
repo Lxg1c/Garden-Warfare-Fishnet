@@ -18,7 +18,14 @@ namespace Core.Components
         [SerializeField] private float initialHealth = 100f;
         [SerializeField] private float maxHealth = 100f;
 
+        [Header("Regeneration")]
+        [SerializeField] private bool enableRegen = true;
+        [SerializeField] private float regenPerSecond = 5f; // HP в секунду
+        [SerializeField] private float regenDelay = 3f; // Задержка после получения урона
+
         private csFogVisibilityAgent _agent;
+        private float _lastDamageTime;
+        private float _regenTimer;
 
         public float MaxHealth => maxHealth;
         public bool IsDead { get; private set; }
@@ -56,6 +63,15 @@ namespace Core.Components
             _сurrentHealth.OnChange -= OnHealthChanged;
         }
 
+        private void Update()
+        {
+            // Регенерация только на сервере
+            if (IsServerStarted && enableRegen && !IsDead)
+            {
+                UpdateRegeneration();
+            }
+        }
+
         private void FixedUpdate()
         {
             // Скрываем/показываем HealthBar в зависимости от видимости в тумане войны
@@ -63,6 +79,32 @@ namespace Core.Components
 
             bool isVisible = _agent.GetVisibility();
             _healthBarController.gameObject.SetActive(isVisible);
+        }
+
+        /// <summary>
+        /// Обновляет регенерацию HP на сервере
+        /// </summary>
+        private void UpdateRegeneration()
+        {
+            // Если здоровье полное - не регенерируем
+            if (_сurrentHealth.Value >= maxHealth) return;
+
+            // Проверяем прошло ли достаточно времени после последнего урона
+            float timeSinceDamage = Time.time - _lastDamageTime;
+            if (timeSinceDamage < regenDelay) return;
+
+            // Регенерируем
+            float regenAmount = regenPerSecond * Time.deltaTime;
+            float newHealth = Mathf.Min(_сurrentHealth.Value + regenAmount, maxHealth);
+            _сurrentHealth.Value = newHealth;
+        }
+
+        /// <summary>
+        /// Сбрасывает таймер регенерации (вызывается при получении урона)
+        /// </summary>
+        public void ResetRegenTimer()
+        {
+            _lastDamageTime = Time.time;
         }
 
         public override void OnStartClient()
@@ -172,6 +214,9 @@ namespace Core.Components
             float newVal = Mathf.Clamp(_сurrentHealth.Value - damage, 0f, MaxHealth);
             _сurrentHealth.Value = newVal;
 
+            // Сбрасываем таймер регенерации
+            _lastDamageTime = Time.time;
+
             ObserversRpc_OnDamaged(attackerNo);
 
             if (_сurrentHealth.Value <= 0f)
@@ -239,36 +284,26 @@ namespace Core.Components
         [ObserversRpc]
         private void ObserversRpc_OnRevive(Vector3 position, Quaternion rotation)
         {
+            Debug.Log($"[Health] {name} ObserversRpc_OnRevive called");
+
             IsDead = false;
 
-            // Включаем рендереры (показываем игрока)
-            foreach (var rend in _renderers)
-            {
-                if (rend != null) rend.enabled = true;
-            }
+            // ВАЖНО: Сначала включаем GameObject (он был выключен в OnDeath)
+            gameObject.SetActive(true);
 
-            // Телепортируем на точку респавна
+            // Отключаем CharacterController для телепортации
             if (_characterController != null)
             {
                 _characterController.enabled = false;
-                transform.SetPositionAndRotation(position, rotation);
+            }
+
+            // Телепортируем на точку респавна
+            transform.SetPositionAndRotation(position, rotation);
+
+            // Включаем CharacterController обратно
+            if (_characterController != null)
+            {
                 _characterController.enabled = true;
-            }
-            else
-            {
-                transform.SetPositionAndRotation(position, rotation);
-            }
-
-            // Включаем скрипты движения
-            foreach (var script in _movementScripts)
-            {
-                if (script != null) script.enabled = true;
-            }
-
-            // Включаем все коллайдеры
-            foreach (var col in _colliders)
-            {
-                if (col != null) col.enabled = true;
             }
 
             // Пересоздаем HealthBar
@@ -277,7 +312,7 @@ namespace Core.Components
             // Вызываем событие возрождения
             OnRevive?.Invoke();
 
-            Debug.Log($"[Health] {gameObject.name} revived at {position}");
+            Debug.Log($"[Health] {name} revived at {position}");
         }
 
         /// <summary>

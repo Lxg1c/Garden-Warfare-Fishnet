@@ -67,8 +67,12 @@ namespace Gameplay.TurretPlant
                 Debug.LogError($"[PlantSpawner {spawnerName}] No plant prefab assigned!");
                 return;
             }
+            
+            Transform spawnPoint = transform;
+            spawnPoint.position = new Vector3(spawnPoint.position.x, 1, spawnPoint.position.z);
+            
 
-            GameObject plantObj = Instantiate(plantPrefab, transform.position, transform.rotation);
+            GameObject plantObj = Instantiate(plantPrefab, spawnPoint.position, transform.rotation);
             ServerManager.Spawn(plantObj);
 
             _currentPlant = plantObj.GetComponent<TurretPlant>();

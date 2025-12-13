@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using AI.Wave;
 using Core.Components;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
@@ -16,7 +17,7 @@ namespace Gameplay.TurretPlant
         [SerializeField] private LayerMask playerLayer;
 
         [Header("Attack Settings")]
-        [SerializeField] private float attackCooldown = 1.5f;
+        [SerializeField] private float attackCooldown = 0.5f; // Быстрая стрельба
         [SerializeField] private int attackDamage = 15;
 
         [Header("Wild Mode Settings")]
@@ -66,7 +67,11 @@ namespace Gameplay.TurretPlant
         public TurretPlantState State => _state.Value;
         public int PlantedOwnerId => _plantedOwnerId.Value;
         public int CarrierId => _carrierId.Value;
-        public bool CanBePickedUp => _state.Value == TurretPlantState.Wild;
+
+        /// <summary>
+        /// Можно выкопать только если растение дикое И в состоянии Idle (не атакует)
+        /// </summary>
+        public bool CanBePickedUp => _state.Value == TurretPlantState.Wild && _wildSubState == WildSubState.Idle;
 
         // ==================
         // Wild SubStates
@@ -202,11 +207,27 @@ namespace Gameplay.TurretPlant
                 return;
             }
 
+            // Проверяем что цель ещё жива
+            Health targetHealth = _wildTarget.GetComponent<Health>();
+            if (targetHealth == null || targetHealth.IsDead || targetHealth.GetHealth() <= 0)
+            {
+                StartWildReturn();
+                return;
+            }
+
             float dist = Vector3.Distance(transform.position, _wildTarget.position);
 
             if (dist > attackRange)
             {
                 SetWildSubState(WildSubState.Chasing);
+                return;
+            }
+
+            // Уменьшаем таймер - через время прекращаем атаковать
+            _chaseTimer -= Time.deltaTime;
+            if (_chaseTimer <= 0f)
+            {
+                StartWildReturn();
                 return;
             }
 
@@ -288,10 +309,20 @@ namespace Gameplay.TurretPlant
             }
         }
 
+        private float _lastTargetSearchTime;
+
         private Transform FindPlantedTarget()
         {
-            // Ищем других игроков (не владельца)
+            // Ищем других игроков (не владельца) И всех врагов волн
+            // Используем detectionRange для поиска
             Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, playerLayer);
+
+            // Дебаг каждые 2 секунды
+            if (Time.time - _lastTargetSearchTime > 2f)
+            {
+                _lastTargetSearchTime = Time.time;
+                Debug.Log($"[TurretPlant] FindPlantedTarget: found {hits.Length} colliders in range {detectionRange}, owner={_plantedOwnerId.Value}");
+            }
 
             Transform closest = null;
             float closestDist = float.MaxValue;
@@ -301,27 +332,52 @@ namespace Gameplay.TurretPlant
                 // Пропускаем себя
                 if (c.transform == transform) continue;
 
-                NetworkObject netObj = c.GetComponent<NetworkObject>();
-                if (netObj == null) continue;
+                // Проверяем волновых врагов - атакуем ВСЕХ (они враги всех игроков)
+                WaveEnemy waveEnemy = c.GetComponent<WaveEnemy>();
+                if (waveEnemy != null)
+                {
+                    // Атакуем всех живых волновых врагов
+                    if (!waveEnemy.IsDead)
+                    {
+                        Health h = c.GetComponent<Health>();
+                        if (h != null && h.GetHealth() > 0 && !h.IsDead && CanSee(c.transform))
+                        {
+                            float dist = Vector3.Distance(transform.position, c.transform.position);
+                            if (dist < closestDist)
+                            {
+                                closest = c.transform;
+                                closestDist = dist;
+                            }
+                        }
+                    }
+                    continue;
+                }
 
-                // Пропускаем владельца
-                if (netObj.OwnerId == _plantedOwnerId.Value) continue;
-
-                // Проверяем что это игрок а не нейтрал
+                // Проверяем что это не нейтрал
                 if (c.GetComponent<AI.Neutral.Neutral>() != null) continue;
 
+                // Проверяем что это игрок (имеет CharacterController или тег Player)
+                bool isPlayer = c.GetComponent<CharacterController>() != null || c.CompareTag("Player");
+                if (!isPlayer) continue;
+
+                NetworkObject netObj = c.GetComponent<NetworkObject>();
+
+                // Пропускаем владельца
+                if (netObj != null && netObj.OwnerId == _plantedOwnerId.Value) continue;
+
                 // Проверяем здоровье
-                Health h = c.GetComponent<Health>();
-                if (h == null || h.GetHealth() <= 0 || h.IsDead) continue;
+                Health h2 = c.GetComponent<Health>();
+                if (h2 == null || h2.GetHealth() <= 0 || h2.IsDead) continue;
 
                 // Проверяем видимость
                 if (!CanSee(c.transform)) continue;
 
-                float dist = Vector3.Distance(transform.position, c.transform.position);
-                if (dist < closestDist)
+                float dist2 = Vector3.Distance(transform.position, c.transform.position);
+                if (dist2 < closestDist)
                 {
                     closest = c.transform;
-                    closestDist = dist;
+                    closestDist = dist2;
+                    Debug.Log($"[TurretPlant] Found player target: {c.name}, dist={dist2:F1}");
                 }
             }
 
@@ -335,8 +391,19 @@ namespace Gameplay.TurretPlant
             Health h = target.GetComponent<Health>();
             if (h == null || h.GetHealth() <= 0 || h.IsDead) return false;
 
-            NetworkObject netObj = target.GetComponent<NetworkObject>();
-            if (netObj != null && netObj.OwnerId == _plantedOwnerId.Value) return false;
+            // Проверяем волновых врагов - атакуем всех живых
+            WaveEnemy waveEnemy = target.GetComponent<WaveEnemy>();
+            if (waveEnemy != null)
+            {
+                if (waveEnemy.IsDead) return false;
+                // Все волновые враги - валидные цели
+            }
+            else
+            {
+                // Для других целей - не атакуем владельца
+                NetworkObject netObj = target.GetComponent<NetworkObject>();
+                if (netObj != null && netObj.OwnerId == _plantedOwnerId.Value) return false;
+            }
 
             float dist = Vector3.Distance(transform.position, target.position);
             return dist <= detectionRange;
@@ -412,6 +479,13 @@ namespace Gameplay.TurretPlant
                 _collider.enabled = false;
             }
 
+            // Отключаем Rigidbody если есть
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+            }
+
             // Уведомляем спавнер что растение забрали
             if (_spawner != null)
             {
@@ -421,6 +495,57 @@ namespace Gameplay.TurretPlant
 
             Debug.Log($"[TurretPlant] Picked up by player {playerId}");
             return true;
+        }
+
+        /// <summary>
+        /// Привязывает растение к игроку (делает дочерним объектом)
+        /// </summary>
+        [Server]
+        public void AttachToPlayer(Transform playerTransform, Vector3 localOffset)
+        {
+            if (_state.Value != TurretPlantState.Carried) return;
+
+            transform.SetParent(playerTransform);
+            transform.localPosition = localOffset;
+            transform.localRotation = Quaternion.identity;
+
+            // Синхронизируем parenting на клиентах
+            AttachToPlayerObserversRpc(playerTransform.GetComponent<NetworkObject>(), localOffset);
+        }
+
+        [ObserversRpc]
+        private void AttachToPlayerObserversRpc(NetworkObject playerNetObj, Vector3 localOffset)
+        {
+            if (playerNetObj == null) return;
+
+            transform.SetParent(playerNetObj.transform);
+            transform.localPosition = localOffset;
+            transform.localRotation = Quaternion.identity;
+        }
+
+        /// <summary>
+        /// Отвязывает растение от игрока
+        /// </summary>
+        [Server]
+        public void DetachFromPlayer()
+        {
+            transform.SetParent(null);
+
+            // Включаем Rigidbody если есть
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+            }
+
+            // Синхронизируем на клиентах
+            DetachFromPlayerObserversRpc();
+        }
+
+        [ObserversRpc]
+        private void DetachFromPlayerObserversRpc()
+        {
+            transform.SetParent(null);
         }
 
         /// <summary>
@@ -436,6 +561,9 @@ namespace Gameplay.TurretPlant
         public void Drop(Vector3 dropPosition)
         {
             if (_state.Value != TurretPlantState.Carried) return;
+
+            // Отвязываем от игрока
+            DetachFromPlayer();
 
             transform.position = dropPosition;
             _state.Value = TurretPlantState.Wild;
@@ -456,7 +584,12 @@ namespace Gameplay.TurretPlant
         {
             if (_state.Value != TurretPlantState.Carried) return;
 
+            // Отвязываем от игрока
+            DetachFromPlayer();
+
+            position.y = 1;
             transform.position = position;
+
             _state.Value = TurretPlantState.Planted;
             _plantedOwnerId.Value = ownerId;
             _carrierId.Value = -1;
