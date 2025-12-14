@@ -112,8 +112,8 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 8326548913328295048}
   _networkObjectCache: {fileID: 8326548913328295048}
   gravityScale: 9.81
-  normalSpeed: 8
-  carrySpeed: 10
+  normalSpeed: 10
+  carrySpeed: 12
 --- !u!114 &8326548913328295048
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -140,6 +140,8 @@ MonoBehaviour:
   - {fileID: 480752333207020003}
   - {fileID: 3894581489768568701}
   - {fileID: 250330345644176048}
+  - {fileID: 3088087929079423283}
+  - {fileID: 4108245014672999432}
   InitializedParentNetworkBehaviour: {fileID: 0}
   InitializedNestedNetworkObjects: []
   RuntimeParentNetworkBehaviour: {fileID: 0}
@@ -150,7 +152,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584369854810164800
+  _initializedTimestamp: -8584359353953497477
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -165,7 +167,7 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 5
+  <PrefabId>k__BackingField: 6
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 5306845881338098766
   SceneId: 0
@@ -387,9 +389,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 138c4ed3554141c0b4de4dca5cfb1cdb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.Components.PlayerInfo
-  _componentIndexCache: 255
+  _componentIndexCache: 7
   _addedNetworkObject: {fileID: 8326548913328295048}
-  _networkObjectCache: {fileID: 0}
+  _networkObjectCache: {fileID: 8326548913328295048}
 --- !u!114 &4108245014672999432
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -402,15 +404,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 484e3994cc3010f448636da1b85e55fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player.PlayerCarryController
-  _componentIndexCache: 255
+  _componentIndexCache: 8
   _addedNetworkObject: {fileID: 8326548913328295048}
-  _networkObjectCache: {fileID: 0}
+  _networkObjectCache: {fileID: 8326548913328295048}
   interactRange: 2.5
   digTime: 1.5
   turretPlantLayer:
     serializedVersion: 2
     m_Bits: 256
-  carrySpeedMultiplier: 0.7
+  carrySpeedMultiplier: 1.2
   carryOffset: {x: 0, y: 0.5, z: 1.2}
   lifeFruitCarryOffset: {x: 0, y: 1, z: 0.8}
   lifeFruitLayer:

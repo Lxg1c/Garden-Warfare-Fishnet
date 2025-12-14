@@ -45,7 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FischlWorks_FogWar.csFogWar
   fogRevealers: []
-  levelMidPoint: {fileID: 0}
+  levelMidPoint: {fileID: 8307378713927788167}
   FogRefreshRate: 10
   fogPlaneHeight: 1
   fogPlaneMaterial: {fileID: 2100000, guid: 36b93ac6fcf129c449491654e397fe4a, type: 2}
