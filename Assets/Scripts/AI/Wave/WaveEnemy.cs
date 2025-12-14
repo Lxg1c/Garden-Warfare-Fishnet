@@ -405,11 +405,17 @@ namespace AI.Wave
         {
             if (target == null) return;
 
+            // Ищем Health на объекте или на родителях (для случая когда цель - дочерний объект)
             Health targetHealth = target.GetComponent<Health>();
+            if (targetHealth == null)
+            {
+                targetHealth = target.GetComponentInParent<Health>();
+            }
+
             if (targetHealth != null)
             {
                 targetHealth.TakeDamage(attackDamage, transform, NetworkObject);
-                Debug.Log($"[WaveEnemy] Attacked {target.name} for {attackDamage} damage");
+                Debug.Log($"[WaveEnemy] Attacked {targetHealth.name} for {attackDamage} damage");
             }
         }
 

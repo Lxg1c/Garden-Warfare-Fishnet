@@ -23,6 +23,10 @@ namespace Core.Components
         [SerializeField] private float regenPerSecond = 5f; // HP в секунду
         [SerializeField] private float regenDelay = 3f; // Задержка после получения урона
 
+        [Header("Death Behavior")]
+        [SerializeField] private bool disableOnDeath = true; // Отключать GameObject при смерти
+        [SerializeField] private bool despawnOnDeath = true; // Деспавнить если нет RespawnManager
+
         private csFogVisibilityAgent _agent;
         private float _lastDamageTime;
         private float _regenTimer;
@@ -234,8 +238,8 @@ namespace Core.Components
 
         private void Die()
         {
-            ObserversRpc_OnDeath();
-            
+            ObserversRpc_OnDeath(disableOnDeath);
+
             if (IsServerInitialized)
             {
                 var respawn = FindFirstObjectByType<RespawnManager>();
@@ -243,7 +247,7 @@ namespace Core.Components
                 {
                     respawn.StartRespawn(gameObject);
                 }
-                else
+                else if (despawnOnDeath)
                 {
                     NetworkObject netObj = GetComponent<NetworkObject>();
                     if (netObj != null)
@@ -255,13 +259,14 @@ namespace Core.Components
                         Destroy(gameObject);
                     }
                 }
+                // Если despawnOnDeath = false, объект остаётся (например LifeFruit - зона видна)
             }
         }
 
         [ObserversRpc]
-        private void ObserversRpc_OnDeath()
+        private void ObserversRpc_OnDeath(bool shouldDisable)
         {
-            Debug.Log($"[Health] {name} ObserversRpc_OnDeath called");
+            Debug.Log($"[Health] {name} ObserversRpc_OnDeath called (shouldDisable={shouldDisable})");
 
             IsDead = true;
 
@@ -275,10 +280,16 @@ namespace Core.Components
                 _healthBarController = null;
             }
 
-            // Отключаем весь GameObject
-            gameObject.SetActive(false);
-
-            Debug.Log($"[Health] {name} died - GameObject disabled");
+            // Отключаем весь GameObject только если разрешено
+            if (shouldDisable)
+            {
+                gameObject.SetActive(false);
+                Debug.Log($"[Health] {name} died - GameObject disabled");
+            }
+            else
+            {
+                Debug.Log($"[Health] {name} died - GameObject kept active");
+            }
         }
 
         [ObserversRpc]

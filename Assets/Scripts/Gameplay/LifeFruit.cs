@@ -4,6 +4,7 @@ using FishNet.Object.Synchronizing;
 using UnityEngine;
 using Core.Settings;
 using FischlWorks_FogWar;
+using Gameplay.TurretPlant;
 using Player;
 
 namespace Gameplay
@@ -19,8 +20,9 @@ namespace Gameplay
     [RequireComponent(typeof(csFogVisibilityAgent))]
     public class LifeFruit : NetworkBehaviour
     {
-        [Header("Planting Zone")]
-        [SerializeField] private GameObject plantingZoneVisual;
+        [Header("Visual")]
+        [SerializeField] private GameObject fruitModel; // 3D модель плода (уничтожается при смерти)
+        [SerializeField] private GameObject plantingZoneVisual; // Зона посадки (остаётся)
 
         [Header("Pickup Settings")]
         [SerializeField] private float pickupTime = 2f; // Время для подбора чужого LifeFruit
@@ -49,16 +51,28 @@ namespace Gameplay
 
         /// <summary>
         /// Можно подобрать если брошен или чужой посаженный (не свой!)
+        /// ВАЖНО: Нельзя красть если у игрока уже есть свой LifeFruit
         /// </summary>
         public bool CanBePickedUp(int playerId)
         {
             // Свой LifeFruit нельзя подбирать
             if (OwnerId == playerId) return false;
 
+            // Нельзя нести
+            if (_state.Value == LifeFruitState.Carried) return false;
+
+            // Проверяем есть ли у игрока свой LifeFruit (если есть - нельзя красть)
+            var playerLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
+            if (playerLifeFruit != null && playerLifeFruit.State == LifeFruitState.Planted)
+            {
+                // У игрока уже есть посаженный LifeFruit - красть нельзя
+                return false;
+            }
+
             // Можно подобрать если брошен
             if (_state.Value == LifeFruitState.Dropped) return true;
 
-            // Можно подобрать чужой посаженный
+            // Можно подобрать чужой посаженный (только если у игрока нет своего)
             if (_state.Value == LifeFruitState.Planted) return true;
 
             return false;
@@ -329,7 +343,24 @@ namespace Gameplay
 
             NotifyPlayerInitializer();
 
-            // Деспавн обрабатывается в Health.Die(), не дублируем здесь
+            // Скрываем только модель плода, зона остаётся видимой
+            HideFruitModelObserversRpc();
+
+            // НЕ деспавним объект - зона должна остаться для понимания где можно посадить новый LifeFruit
+            // Отключаем коллайдер чтобы нельзя было взаимодействовать
+            if (_collider != null)
+            {
+                _collider.enabled = false;
+            }
+        }
+
+        [ObserversRpc]
+        private void HideFruitModelObserversRpc()
+        {
+            if (fruitModel != null)
+            {
+                fruitModel.SetActive(false);
+            }
         }
 
         [Server]

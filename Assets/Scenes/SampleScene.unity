@@ -1960,7 +1960,7 @@ MonoBehaviour:
   _addedNetworkObject: {fileID: 877187439}
   _networkObjectCache: {fileID: 0}
   respawnDelay: 3
-  lifeFruitPrefab: {fileID: 7982668873733477938, guid: 61fef72d776dde44280d60c92a3652cf, type: 3}
+  lifeFruitPrefab: {fileID: 1898140706116047032, guid: 6813dc3d8149779468af79e1a75bd6a3, type: 3}
 --- !u!4 &877187441
 Transform:
   m_ObjectHideFlags: 0

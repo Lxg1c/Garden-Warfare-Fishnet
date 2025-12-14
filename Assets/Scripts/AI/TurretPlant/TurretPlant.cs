@@ -523,25 +523,6 @@ namespace Gameplay.TurretPlant
             transform.localRotation = Quaternion.identity;
         }
 
-        /// <summary>
-        /// Отвязывает растение от игрока
-        /// </summary>
-        [Server]
-        public void DetachFromPlayer()
-        {
-            transform.SetParent(null);
-
-            // Включаем Rigidbody если есть
-            var rb = GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.isKinematic = false;
-            }
-
-            // Синхронизируем на клиентах
-            DetachFromPlayerObserversRpc();
-        }
-
         [ObserversRpc]
         private void DetachFromPlayerObserversRpc()
         {
@@ -557,18 +538,24 @@ namespace Gameplay.TurretPlant
             _spawner = spawner;
         }
 
+        [Header("Placement Settings")]
+        [SerializeField] private float plantHeightOffset = 0.5f; // Offset вверх от земли при посадке
+
         [Server]
         public void Drop(Vector3 dropPosition)
         {
             if (_state.Value != TurretPlantState.Carried) return;
 
-            // Отвязываем от игрока
-            DetachFromPlayer();
+            // Отвязываем от игрока (но НЕ включаем Rigidbody - сделаем это вручную)
+            transform.SetParent(null);
+            DetachFromPlayerObserversRpc();
 
-            transform.position = dropPosition;
+            // Находим правильную высоту
+            Vector3 finalPos = GetGroundPosition(dropPosition);
+            transform.position = finalPos;
             _state.Value = TurretPlantState.Wild;
             _carrierId.Value = -1;
-            _homePosition = dropPosition;
+            _homePosition = finalPos;
 
             // Включаем коллайдер
             if (_collider != null)
@@ -576,7 +563,16 @@ namespace Gameplay.TurretPlant
                 _collider.enabled = true;
             }
 
-            Debug.Log($"[TurretPlant] Dropped at {dropPosition}");
+            // Rigidbody остаётся kinematic - растение не должно падать
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
+            Debug.Log($"[TurretPlant] Dropped at {finalPos}");
         }
 
         [Server]
@@ -584,11 +580,13 @@ namespace Gameplay.TurretPlant
         {
             if (_state.Value != TurretPlantState.Carried) return;
 
-            // Отвязываем от игрока
-            DetachFromPlayer();
+            // Отвязываем от игрока (без включения физики)
+            transform.SetParent(null);
+            DetachFromPlayerObserversRpc();
 
-            position.y = 1;
-            transform.position = position;
+            // Находим правильную высоту через raycast
+            Vector3 finalPos = GetGroundPosition(position);
+            transform.position = finalPos;
 
             _state.Value = TurretPlantState.Planted;
             _plantedOwnerId.Value = ownerId;
@@ -600,10 +598,35 @@ namespace Gameplay.TurretPlant
                 _collider.enabled = true;
             }
 
+            // Rigidbody kinematic - растение стоит на месте
+            var rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
             // Регистрируем в менеджере
             TurretPlantManager.Instance?.RegisterPlantedTurret(ownerId, this);
 
-            Debug.Log($"[TurretPlant] Planted by player {ownerId} at {position}");
+            Debug.Log($"[TurretPlant] Planted by player {ownerId} at {finalPos}");
+        }
+
+        /// <summary>
+        /// Находит позицию на земле через raycast + offset вверх
+        /// </summary>
+        private Vector3 GetGroundPosition(Vector3 position)
+        {
+            // Raycast вниз от высокой точки
+            Vector3 rayStart = position + Vector3.up * 5f;
+            if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 10f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                // Добавляем offset вверх чтобы растение не было в земле
+                return hit.point + Vector3.up * plantHeightOffset;
+            }
+            // Fallback - используем исходную позицию
+            return position + Vector3.up * plantHeightOffset;
         }
 
         /// <summary>
