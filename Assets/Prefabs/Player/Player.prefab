@@ -424,7 +424,7 @@ MonoBehaviour:
   ghostValidMaterial: {fileID: 2100000, guid: dd16663c8d44caa4a9a90d3ee17862c5, type: 2}
   ghostInvalidMaterial: {fileID: 2100000, guid: 787330b4d1ba36d498eeff5d04fe06ae, type: 2}
   ghostForwardOffset: 2.5
-  ghostHeightOffset: 1.12
+  ghostHeightOffset: 1
 --- !u!1 &2188933352886911752
 GameObject:
   m_ObjectHideFlags: 0

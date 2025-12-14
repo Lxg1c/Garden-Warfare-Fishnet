@@ -51,32 +51,56 @@ namespace Gameplay
 
         /// <summary>
         /// Можно подобрать если брошен или чужой посаженный (не свой!)
-        /// ВАЖНО: Нельзя красть если у игрока уже есть свой LifeFruit
+        /// ВАЖНО: Нельзя красть если у игрока уже есть свой живой LifeFruit
+        /// ВАЖНО: Нельзя красть если у владельца есть живые турели
         /// </summary>
         public bool CanBePickedUp(int playerId)
         {
             // Свой LifeFruit нельзя подбирать
             if (OwnerId == playerId) return false;
 
-            // Нельзя нести
+            // Нельзя подобрать мёртвый LifeFruit
+            if (IsDead) return false;
+
+            // Нельзя нести (уже кто-то несёт)
             if (_state.Value == LifeFruitState.Carried) return false;
 
-            // Проверяем есть ли у игрока свой LifeFruit (если есть - нельзя красть)
+            // Проверяем есть ли у игрока свой ЖИВОЙ LifeFruit (если есть - нельзя красть)
             var playerLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
-            if (playerLifeFruit != null && playerLifeFruit.State == LifeFruitState.Planted)
+            if (playerLifeFruit != null && playerLifeFruit.IsAlive)
             {
-                // У игрока уже есть посаженный LifeFruit - красть нельзя
+                // У игрока уже есть живой посаженный LifeFruit - красть нельзя
+                Debug.Log($"[LifeFruit] Player {playerId} cannot steal - has alive LifeFruit");
+                return false;
+            }
+
+            // Проверяем есть ли у владельца этого LifeFruit живые турели
+            int ownerTurretCount = TurretPlantManager.Instance?.GetTurretCount(OwnerId) ?? 0;
+            if (ownerTurretCount > 0)
+            {
+                // Сначала нужно уничтожить все турели владельца
+                Debug.Log($"[LifeFruit] Cannot steal - owner {OwnerId} has {ownerTurretCount} turrets");
                 return false;
             }
 
             // Можно подобрать если брошен
             if (_state.Value == LifeFruitState.Dropped) return true;
 
-            // Можно подобрать чужой посаженный (только если у игрока нет своего)
+            // Можно подобрать чужой посаженный (только если у игрока нет своего живого)
             if (_state.Value == LifeFruitState.Planted) return true;
 
             return false;
         }
+
+        /// <summary>
+        /// Проверяет жив ли этот LifeFruit
+        /// </summary>
+        public bool IsDead => _health != null && _health.IsDead;
+
+        /// <summary>
+        /// Проверяет жив ли и посажен ли этот LifeFruit
+        /// </summary>
+        public bool IsAlive => !IsDead && _state.Value == LifeFruitState.Planted;
 
         /// <summary>
         /// Время подбора (мгновенно если брошен, долго если посажен)

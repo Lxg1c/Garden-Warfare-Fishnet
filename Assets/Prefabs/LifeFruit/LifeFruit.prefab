@@ -125,7 +125,9 @@ GameObject:
   - component: {fileID: 731585174577907581}
   - component: {fileID: 3728534082874735457}
   - component: {fileID: 6114783042203481166}
-  m_Layer: 0
+  - component: {fileID: 625185297579864016}
+  - component: {fileID: 5501434387708494251}
+  m_Layer: 9
   m_Name: LifeFruit
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -273,6 +275,54 @@ MonoBehaviour:
   fogWar: {fileID: 0}
   visibility: 0
   additionalRadius: 0
+--- !u!65 &625185297579864016
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4809717491836481717}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2, y: 2, z: 2}
+  m_Center: {x: 0, y: 1, z: 0}
+--- !u!54 &5501434387708494251
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4809717491836481717}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 1
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 10
+  m_CollisionDetection: 0
 --- !u!1 &4985357838336820029
 GameObject:
   m_ObjectHideFlags: 0
@@ -298,7 +348,7 @@ Transform:
   m_GameObject: {fileID: 4985357838336820029}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -325,6 +375,10 @@ PrefabInstance:
       propertyPath: WasActiveDuringEdit
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6325875362086035621, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7982668873733477938, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
       propertyPath: SceneId
       value: 0
@@ -339,7 +393,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9184713131555509620, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9184713131555509620, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
       propertyPath: m_LocalPosition.z
@@ -376,10 +430,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3426391584002515046, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2215846779511703253}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
 --- !u!4 &1760083879284545281 stripped
 Transform:
@@ -391,30 +442,3 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 3426391584002515046, guid: e451cf6735459b441af39eb2cd6adacc, type: 3}
   m_PrefabInstance: {fileID: 7429731126263857781}
   m_PrefabAsset: {fileID: 0}
---- !u!54 &2215846779511703253
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5230730742866469395}
-  serializedVersion: 5
-  m_Mass: 1
-  m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0

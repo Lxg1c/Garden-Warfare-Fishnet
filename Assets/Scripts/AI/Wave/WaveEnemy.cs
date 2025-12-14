@@ -145,6 +145,9 @@ namespace AI.Wave
 
         private void UpdateState()
         {
+            // Проверяем жив ли целевой LifeFruit
+            bool lifeFruitAlive = IsLifeFruitAlive();
+
             // Если в режиме агро - проверяем таймер
             if (_state == WaveEnemyState.Aggro)
             {
@@ -152,7 +155,7 @@ namespace AI.Wave
                 if (_aggroTimer <= 0f || _currentTarget == null || IsTargetDead(_currentTarget))
                 {
                     // Возвращаемся к атаке LifeFruit или переходим в Idle
-                    if (_targetLifeFruit != null)
+                    if (lifeFruitAlive)
                     {
                         _state = WaveEnemyState.AttackingLifeFruit;
                         _currentTarget = _targetLifeFruit;
@@ -166,19 +169,37 @@ namespace AI.Wave
             }
 
             // Если LifeFruit уничтожен и мы не в агро - переходим в Idle
-            if (_targetLifeFruit == null && _state == WaveEnemyState.AttackingLifeFruit)
+            if (!lifeFruitAlive && _state == WaveEnemyState.AttackingLifeFruit)
             {
                 _state = WaveEnemyState.Idle;
                 _currentTarget = null;
-                Debug.Log($"[WaveEnemy] LifeFruit destroyed - switching to Idle state");
+                Debug.Log($"[WaveEnemy] LifeFruit destroyed or dead - switching to Idle state");
             }
+        }
+
+        /// <summary>
+        /// Проверяет жив ли целевой LifeFruit
+        /// </summary>
+        private bool IsLifeFruitAlive()
+        {
+            if (_targetLifeFruit == null) return false;
+
+            var lifeFruit = _targetLifeFruit.GetComponent<LifeFruit>();
+            if (lifeFruit == null)
+            {
+                // Возможно LifeFruit на родительском объекте
+                lifeFruit = _targetLifeFruit.GetComponentInParent<LifeFruit>();
+            }
+
+            return lifeFruit != null && lifeFruit.IsAlive;
         }
 
         private void UpdateAttackingLifeFruit()
         {
-            if (_targetLifeFruit == null)
+            if (!IsLifeFruitAlive())
             {
                 _state = WaveEnemyState.Idle;
+                _currentTarget = null;
                 return;
             }
 
@@ -191,7 +212,7 @@ namespace AI.Wave
             if (_currentTarget == null || IsTargetDead(_currentTarget))
             {
                 // Цель мертва - возвращаемся
-                if (_targetLifeFruit != null)
+                if (IsLifeFruitAlive())
                 {
                     _state = WaveEnemyState.AttackingLifeFruit;
                     _currentTarget = _targetLifeFruit;
@@ -199,6 +220,7 @@ namespace AI.Wave
                 else
                 {
                     _state = WaveEnemyState.Idle;
+                    _currentTarget = null;
                 }
                 return;
             }
