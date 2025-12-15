@@ -69,20 +69,20 @@ namespace Player
         public override void OnStartServer()
         {
             base.OnStartServer();
-            
+
             if (_respawnManager == null)
             {
                 _respawnManager = FindFirstObjectByType<RespawnManager>();
             }
-            
+
             if (_respawnManager == null)
             {
                 Debug.LogError("RespawnManager not found!");
                 return;
             }
-            
+
             Debug.Log($"PlayerInitializer: Player {OwnerId} connected");
-            
+
             InitializePlayerLifeFruit();
         }
 
@@ -105,13 +105,13 @@ namespace Player
             {
                 return playerInfo.SpawnPoint;
             }
-            
+
             if (GameSpawnManager.Instance != null)
             {
                 Transform spawnPoint = GameSpawnManager.Instance.GetPlayerSpawnPoint(OwnerId);
                 if (spawnPoint != null) return spawnPoint;
             }
-            
+
             return _defaultSpawnPoint != null ? _defaultSpawnPoint : transform;
         }
 
