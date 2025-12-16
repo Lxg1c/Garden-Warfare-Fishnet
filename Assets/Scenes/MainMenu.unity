@@ -714,7 +714,7 @@ GameObject:
   - component: {fileID: 250220603}
   - component: {fileID: 250220606}
   - component: {fileID: 250220605}
-  - component: {fileID: 250220604}
+  - component: {fileID: 250220607}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -737,26 +737,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &250220604
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 250220602}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bdee964473d743b1bc62fd8f82ca78f2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::FishNet.Discovery.NetworkDiscovery
-  _networkManager: {fileID: 0}
-  secret: 
-  _secretBytes: []
-  port: 0
-  searchTimeout: 0
-  automatic: 0
-  <IsAdvertising>k__BackingField: 0
-  <IsSearching>k__BackingField: 0
 --- !u!114 &250220605
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -798,6 +778,22 @@ MonoBehaviour:
   _persistence: 0
   _logging: {fileID: 0}
   _spawnablePrefabs: {fileID: 11400000, guid: 68e3347333f593c45a712cbf9063b5f7, type: 2}
+--- !u!114 &250220607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 250220602}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4dfe12bd07b72044082c205ad62389b5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FishNet.Discovery.NetworkDiscovery
+  secret: 
+  port: 0
+  searchTimeout: 0
+  automatic: 0
 --- !u!1 &282299918
 GameObject:
   m_ObjectHideFlags: 0
@@ -880,7 +876,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 1228639359}
   m_HandleRect: {fileID: 1228639358}
   m_Direction: 0
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -1006,7 +1002,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 909029486}
   m_HandleRect: {fileID: 909029485}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -1658,8 +1654,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1753994203}
-        m_TargetAssemblyTypeName: LocalNetworkMenu, Assembly-CSharp
-        m_MethodName: HostLocal
+        m_TargetAssemblyTypeName: LanConnectionManager, Assembly-CSharp
+        m_MethodName: OnLanButtonClicked
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3381,18 +3377,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1753994201}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0d4f9f8c95e3c594d9a4c9f02825385d, type: 3}
+  m_Script: {fileID: 11500000, guid: f71512835bacde847b736419deeda5eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LanConnectionManager
-  gameSceneName: GameScene
+  gameSceneName: Game
   searchTimeout: 1
-  mainButtonsPanel: {fileID: 0}
-  modeSelectionPanel: {fileID: 0}
-  loadingPanel: {fileID: 0}
-  _networkManager: {fileID: 0}
-  _networkDiscovery: {fileID: 0}
-  _tugboat: {fileID: 0}
-  _isConnecting: 0
 --- !u!4 &1795690709 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
