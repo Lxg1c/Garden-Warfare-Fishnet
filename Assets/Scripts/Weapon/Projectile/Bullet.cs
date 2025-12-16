@@ -42,17 +42,24 @@ namespace Weapon.Projectile
         private void OnTriggerEnter(Collider other)
         {
             if (!IsServerInitialized) return;
-            
+
             if (_owner != null && other.transform == _owner) return;
 
-            if (other.TryGetComponent(out Health hp))
+            // Ищем Health на самом объекте ИЛИ на родителях (для случая когда коллайдер на дочернем объекте)
+            Health hp = other.GetComponent<Health>();
+            if (hp == null)
             {
-                Debug.Log("Пытаемся нанести урон");
+                hp = other.GetComponentInParent<Health>();
+            }
+
+            if (hp != null)
+            {
+                Debug.Log($"Пытаемся нанести урон объекту {hp.name}");
                 hp.TakeDamage(damage, _owner, _ownerNetworkObject);
             }
             else
             {
-                Debug.Log("Нет компонента здоровья");
+                Debug.Log($"Нет компонента здоровья на {other.name}");
                 SpawnImpactEffect();
             }
 

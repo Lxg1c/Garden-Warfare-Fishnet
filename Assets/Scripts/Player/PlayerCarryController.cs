@@ -1,5 +1,6 @@
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
+using Core.Components;
 using Gameplay;
 using Gameplay.TurretPlant;
 using UnityEngine;
@@ -22,6 +23,21 @@ namespace Player
         [Header("LifeFruit Layer")]
         [SerializeField] private LayerMask lifeFruitLayer;
 
+        [Header("Ghost Preview")]
+        [SerializeField] private GameObject plantGhostPrefab;
+        [SerializeField] private Material ghostValidMaterial;
+        [SerializeField] private Material ghostInvalidMaterial;
+        [SerializeField] private float ghostForwardOffset = 2f;
+        [SerializeField] private float ghostHeightOffset = 0.1f; // Небольшой отступ от земли
+
+        // ==================
+        // Ghost Preview
+        // ==================
+
+        private GameObject _ghostInstance;
+        private Renderer[] _ghostRenderers;
+        private Vector3 _lastGhostPosition; // Кэшируем позицию для посадки
+
         // ==================
         // Синхронизация
         // ==================
@@ -36,6 +52,7 @@ namespace Player
         private PlayerInputActions _input;
         private PlayerMovement _playerMovement;
         private WeaponController _weaponController;
+        private Health _health;
 
         private TurretPlant _nearbyPlant;
         private LifeFruit _nearbyLifeFruit;
@@ -67,6 +84,28 @@ namespace Player
             _input = new PlayerInputActions();
             _playerMovement = GetComponent<PlayerMovement>();
             _weaponController = GetComponent<WeaponController>();
+            _health = GetComponent<Health>();
+        }
+
+        public override void OnStartServer()
+        {
+            base.OnStartServer();
+
+            // Подписываемся на урон - роняем предмет при получении урона
+            if (_health != null)
+            {
+                _health.OnDamaged += OnPlayerDamaged;
+            }
+        }
+
+        public override void OnStopServer()
+        {
+            base.OnStopServer();
+
+            if (_health != null)
+            {
+                _health.OnDamaged -= OnPlayerDamaged;
+            }
         }
 
         public override void OnStartClient()
@@ -95,6 +134,46 @@ namespace Player
             _carriedPlantNetObj.OnChange -= OnCarriedPlantChanged;
         }
 
+        /// <summary>
+        /// Вызывается при получении урона - роняем переносимый предмет
+        /// </summary>
+        [Server]
+        private void OnPlayerDamaged(Transform attacker)
+        {
+            if (!IsCarrying) return;
+
+            Debug.Log($"[PlayerCarryController] Player {OwnerId} took damage while carrying - dropping item");
+
+            Vector3 dropPos = transform.position + transform.forward * 1.5f;
+
+            // Находим позицию на земле
+            if (Physics.Raycast(dropPos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f))
+            {
+                dropPos = hit.point;
+            }
+
+            if (IsCarryingPlant)
+            {
+                var plant = _carriedPlantNetObj.Value?.GetComponent<TurretPlant>();
+                if (plant != null)
+                {
+                    plant.Drop(dropPos);
+                }
+                _carriedPlantNetObj.Value = null;
+            }
+            else if (IsCarryingLifeFruit)
+            {
+                var lifeFruit = _carriedLifeFruitNetObj.Value?.GetComponent<LifeFruit>();
+                if (lifeFruit != null)
+                {
+                    lifeFruit.Drop(dropPos);
+                }
+                _carriedLifeFruitNetObj.Value = null;
+            }
+
+            ApplyCarryStateObserversRpc(false);
+        }
+
         private void Update()
         {
             if (!IsOwner) return;
@@ -103,16 +182,25 @@ namespace Player
             {
                 HandleCarryingInput();
 
-                // Показываем зону только если несём растение (не LifeFruit)
+                // Показываем зону и ghost preview
                 if (IsCarryingPlant)
                 {
                     ShowPlantingZone();
+                    UpdateGhostPreview(true);
+                }
+                else if (IsCarryingLifeFruit)
+                {
+                    // Показываем зону куда можно посадить LifeFruit
+                    ShowLifeFruitPlantingZone();
+                    UpdateGhostPreview(false);
                 }
             }
             else
             {
                 HandleDigInput();
                 HidePlantingZone();
+                HideLifeFruitPlantingZone();
+                HideGhostPreview();
             }
         }
 
@@ -281,11 +369,24 @@ namespace Player
 
         private Vector3 GetPlantingPosition()
         {
-            Vector3 pos = transform.position + transform.forward * 1.5f;
-
-            if (Physics.Raycast(pos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f))
+            // Используем кэшированную позицию ghost preview если она есть
+            if (_lastGhostPosition != Vector3.zero)
             {
-                pos = hit.point;
+                return _lastGhostPosition;
+            }
+
+            // Fallback - вычисляем позицию
+            return CalculatePlantingPosition();
+        }
+
+        private Vector3 CalculatePlantingPosition()
+        {
+            Vector3 pos = transform.position + transform.forward * ghostForwardOffset;
+
+            // Raycast вниз чтобы найти землю
+            if (Physics.Raycast(pos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 10f, Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore))
+            {
+                pos = hit.point + Vector3.up * ghostHeightOffset;
             }
 
             return pos;
@@ -305,7 +406,7 @@ namespace Player
 
             if (_myLifeFruit != null)
             {
-                // Включаем visualRadius только на своём LifeFruit
+                // Включаем зону через родительский объект LifeFruit
                 _myLifeFruit.SendMessage("ShowPlantingZone", SendMessageOptions.DontRequireReceiver);
             }
         }
@@ -315,6 +416,136 @@ namespace Player
             if (_myLifeFruit != null)
             {
                 _myLifeFruit.SendMessage("HidePlantingZone", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        // ==================
+        // LIFEFRUIT PLANTING ZONE
+        // ==================
+
+        private void ShowLifeFruitPlantingZone()
+        {
+            // Для LifeFruit показываем ту же зону (вокруг своего LifeFruit если есть)
+            if (_myLifeFruit == null)
+            {
+                _myLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(OwnerId);
+            }
+
+            if (_myLifeFruit != null)
+            {
+                _myLifeFruit.SendMessage("ShowPlantingZone", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        private void HideLifeFruitPlantingZone()
+        {
+            if (_myLifeFruit != null)
+            {
+                _myLifeFruit.SendMessage("HidePlantingZone", SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        // ==================
+        // GHOST PREVIEW
+        // ==================
+
+        private void UpdateGhostPreview(bool isPlant)
+        {
+            // Создаём ghost если нужно
+            if (_ghostInstance == null && plantGhostPrefab != null)
+            {
+                _ghostInstance = Instantiate(plantGhostPrefab);
+                _ghostRenderers = _ghostInstance.GetComponentsInChildren<Renderer>();
+
+                // Отключаем все компоненты кроме рендереров
+                foreach (var col in _ghostInstance.GetComponentsInChildren<Collider>())
+                {
+                    col.enabled = false;
+                }
+                foreach (var behaviour in _ghostInstance.GetComponentsInChildren<MonoBehaviour>())
+                {
+                    behaviour.enabled = false;
+                }
+            }
+
+            if (_ghostInstance == null) return;
+
+            // Вычисляем позицию для ghost
+            Vector3 plantPos = CalculatePlantingPosition();
+            _lastGhostPosition = plantPos; // Кэшируем для использования при посадке
+
+            // Позиционируем ghost
+            _ghostInstance.transform.position = plantPos;
+
+            // Поворачиваем ghost в направлении взгляда игрока (только по Y)
+            Vector3 forward = transform.forward;
+            forward.y = 0;
+            if (forward != Vector3.zero)
+            {
+                _ghostInstance.transform.rotation = Quaternion.LookRotation(forward);
+            }
+
+            _ghostInstance.SetActive(true);
+
+            // Проверяем валидность позиции
+            bool isValid;
+            if (isPlant)
+            {
+                // Для растения - проверяем через TurretPlantManager
+                isValid = TurretPlantManager.Instance != null &&
+                          TurretPlantManager.Instance.CanPlantAt(OwnerId, plantPos);
+            }
+            else
+            {
+                // Для LifeFruit - проверяем расстояние до своего LifeFruit
+                isValid = CanPlantLifeFruitAt(plantPos);
+            }
+
+            // Меняем материал в зависимости от валидности
+            UpdateGhostMaterial(isValid);
+        }
+
+        private void UpdateGhostMaterial(bool isValid)
+        {
+            if (_ghostRenderers == null) return;
+
+            Material mat = isValid ? ghostValidMaterial : ghostInvalidMaterial;
+            if (mat == null) return;
+
+            foreach (var renderer in _ghostRenderers)
+            {
+                renderer.material = mat;
+            }
+        }
+
+        private void HideGhostPreview()
+        {
+            if (_ghostInstance != null)
+            {
+                _ghostInstance.SetActive(false);
+            }
+            _lastGhostPosition = Vector3.zero;
+        }
+
+        private bool CanPlantLifeFruitAt(Vector3 position)
+        {
+            // LifeFruit можно посадить ТОЛЬКО в его оригинальной позиции
+            if (!IsCarryingLifeFruit) return false;
+
+            var carriedLifeFruit = _carriedLifeFruitNetObj.Value?.GetComponent<LifeFruit>();
+            if (carriedLifeFruit == null) return false;
+
+            // Проверяем расстояние до оригинальной позиции
+            Vector3 originalPos = carriedLifeFruit.OriginalPosition;
+            float dist = Vector3.Distance(position, originalPos);
+            return dist <= 3f; // Небольшой допуск
+        }
+
+        private void OnDestroy()
+        {
+            if (_ghostInstance != null)
+            {
+                Destroy(_ghostInstance);
             }
         }
 
@@ -351,13 +582,7 @@ namespace Player
             if (plant != null)
             {
                 Vector3 dropPos = transform.position + transform.forward * 1.5f;
-                dropPos.y = 1;
-
-                if (Physics.Raycast(dropPos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 5f))
-                {
-                    dropPos = hit.point;
-                }
-
+                // TurretPlant.Drop сам найдёт правильную высоту через GetGroundPosition
                 plant.Drop(dropPos);
             }
 
@@ -439,27 +664,23 @@ namespace Player
         {
             if (!IsCarryingLifeFruit) return;
 
-            // LifeFruit можно посадить только рядом с уже существующим LifeFruit владельца
-            // ИЛИ на месте своего спавна
-            var myLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(OwnerId);
-
-            // Если у игрока уже есть LifeFruit - сажаем рядом с ним
-            if (myLifeFruit != null)
-            {
-                float dist = Vector3.Distance(position, myLifeFruit.transform.position);
-                if (dist > 10f) // Максимальное расстояние для посадки
-                {
-                    NotifyCannotPlantTargetRpc(Owner);
-                    return;
-                }
-            }
-
             var lifeFruit = _carriedLifeFruitNetObj.Value.GetComponent<LifeFruit>();
-            if (lifeFruit != null)
+            if (lifeFruit == null) return;
+
+            // LifeFruit можно посадить ТОЛЬКО в его оригинальной позиции
+            Vector3 originalPos = lifeFruit.OriginalPosition;
+            float distToOriginal = Vector3.Distance(position, originalPos);
+
+            // Проверяем расстояние до оригинальной позиции (небольшой допуск)
+            if (distToOriginal > 3f)
             {
-                // Сажаем LifeFruit и делаем его своим
-                lifeFruit.PlantForNewOwner(OwnerId, position);
+                Debug.Log($"[PlayerCarryController] Cannot plant LifeFruit - too far from original position ({distToOriginal:F1}m)");
+                NotifyCannotPlantTargetRpc(Owner);
+                return;
             }
+
+            // Сажаем LifeFruit в оригинальной позиции и делаем его своим
+            lifeFruit.PlantForNewOwner(OwnerId, originalPos);
 
             _carriedLifeFruitNetObj.Value = null;
             ApplyCarryStateObserversRpc(false);

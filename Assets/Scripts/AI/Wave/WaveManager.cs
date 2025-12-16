@@ -146,14 +146,14 @@ namespace AI.Wave
         {
             _playersWithLifeFruit.Clear();
 
-            // Находим всех игроков с LifeFruit
+            // Находим всех игроков с ЖИВЫМ LifeFruit
             var lifeFruits = FindObjectsByType<LifeFruit>(FindObjectsSortMode.None);
             foreach (var fruit in lifeFruits)
             {
                 if (fruit != null && fruit.NetworkObject != null && fruit.NetworkObject.IsSpawned)
                 {
-                    // Только посаженные LifeFruit считаются (не те что несут)
-                    if (fruit.State == LifeFruitState.Planted)
+                    // Только ЖИВЫЕ посаженные LifeFruit считаются (не мёртвые и не те что несут)
+                    if (fruit.IsAlive)
                     {
                         if (!_playersWithLifeFruit.Contains(fruit.OwnerId))
                         {

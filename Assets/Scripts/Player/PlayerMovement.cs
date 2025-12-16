@@ -1,5 +1,6 @@
 using UnityEngine;
 using FishNet.Object;
+using Player.Components;
 
 namespace Player
 {
@@ -10,6 +11,7 @@ namespace Player
         private PlayerInputActions _playerInputActions;
         private CharacterController _characterController;
         private Animator _animator;
+        private PlayerInfo _playerInfo;
 
         private float _verticalVelocity;
         private Vector2 _moveInput;
@@ -18,22 +20,26 @@ namespace Player
 
         public float normalSpeed = 5f;
         public float carrySpeed = 3f;
-        
-        // ��������
+
+        // Анимация
         private float _animMoveX;
         private float _animMoveY;
         private readonly float _animationSmooth = 10f;
-        
-        // ������������ ���� ����������
+
+        // Хеши параметров аниматора
         private int _moveXHash;
         private int _moveYHash;
         private int _moveSpeedHash;
+
+        // Флаг для определения первого движения
+        private bool _spawnPositionSet;
 
         private void Awake()
         {
             _characterController = GetComponent<CharacterController>();
             _animator = GetComponent<Animator>();
-            
+            _playerInfo = GetComponent<PlayerInfo>();
+
             _moveXHash = Animator.StringToHash("moveX");
             _moveYHash = Animator.StringToHash("moveY");
             _moveSpeedHash = Animator.StringToHash("speed");
@@ -80,6 +86,12 @@ namespace Player
 
             if (inputDir.magnitude > 0.1f)
             {
+                // При первом движении/повороте - сохраняем позицию спавна
+                if (!_spawnPositionSet)
+                {
+                    SetSpawnPositionOnFirstMove();
+                }
+
                 Quaternion targetRotation = Quaternion.LookRotation(inputDir);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 10f);
 
@@ -90,6 +102,34 @@ namespace Player
             // Применяем гравитацию к движению
             moveVector.y = _verticalVelocity * Time.deltaTime;
             _characterController.Move(moveVector);
+        }
+
+        /// <summary>
+        /// Сохраняет текущую позицию как точку респавна при первом движении игрока
+        /// </summary>
+        private void SetSpawnPositionOnFirstMove()
+        {
+            _spawnPositionSet = true;
+
+            // Отправляем на сервер запрос на сохранение позиции спавна
+            SetSpawnPositionServerRpc(transform.position, transform.rotation);
+
+            Debug.Log($"[PlayerMovement] First move detected - setting spawn position at {transform.position}");
+        }
+
+        [ServerRpc]
+        private void SetSpawnPositionServerRpc(Vector3 position, Quaternion rotation)
+        {
+            if (_playerInfo == null)
+            {
+                _playerInfo = GetComponent<PlayerInfo>();
+            }
+
+            if (_playerInfo != null)
+            {
+                _playerInfo.SetSpawnPosition(position, rotation);
+                Debug.Log($"[Server] Player {OwnerId} spawn position set to {position}");
+            }
         }
 
         private void UpdateAnimator()

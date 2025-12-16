@@ -53,21 +53,28 @@ namespace Gameplay.TurretPlant
             // Не бьём саму турель
             if (_turretOwner != null && other.transform == _turretOwner) return;
 
-            // Не бьём владельца турели
+            // Не бьём владельца турели (проверяем и на объекте и на родителе)
             var netObj = other.GetComponent<NetworkObject>();
+            if (netObj == null) netObj = other.GetComponentInParent<NetworkObject>();
             if (netObj != null && netObj.OwnerId == _turretOwnerId) return;
 
             // Не бьём нейтралов (турель атакует только игроков)
             if (other.GetComponent<AI.Neutral.Neutral>() != null) return;
+            if (other.GetComponentInParent<AI.Neutral.Neutral>() != null) return;
 
             // Не бьём другие турели того же владельца
             var turret = other.GetComponent<TurretPlant>();
+            if (turret == null) turret = other.GetComponentInParent<TurretPlant>();
             if (turret != null && turret.PlantedOwnerId == _turretOwnerId) return;
 
-            if (other.TryGetComponent(out Health hp))
+            // Ищем Health на объекте или на родителях
+            Health hp = other.GetComponent<Health>();
+            if (hp == null) hp = other.GetComponentInParent<Health>();
+
+            if (hp != null)
             {
                 hp.TakeDamage(damage, _turretOwner);
-                Debug.Log($"[TurretBullet] Hit {other.name} for {damage} damage");
+                Debug.Log($"[TurretBullet] Hit {hp.name} for {damage} damage");
             }
 
             DespawnBullet();

@@ -4,7 +4,9 @@ using FishNet.Object.Synchronizing;
 using UnityEngine;
 using Core.Settings;
 using FischlWorks_FogWar;
+using Gameplay.TurretPlant;
 using Player;
+using AI.Wave;
 
 namespace Gameplay
 {
@@ -19,8 +21,9 @@ namespace Gameplay
     [RequireComponent(typeof(csFogVisibilityAgent))]
     public class LifeFruit : NetworkBehaviour
     {
-        [Header("Planting Zone")]
-        [SerializeField] private GameObject plantingZoneVisual;
+        [Header("Visual")]
+        [SerializeField] private GameObject fruitModel; // 3D модель плода (уничтожается при смерти)
+        [SerializeField] private GameObject plantingZoneVisual; // Зона посадки (остаётся)
 
         [Header("Pickup Settings")]
         [SerializeField] private float pickupTime = 2f; // Время для подбора чужого LifeFruit
@@ -40,6 +43,10 @@ namespace Gameplay
         private csFogVisibilityAgent _visibilityAgent;
         private Collider _collider;
 
+        // Оригинальная позиция LifeFruit (для возврата после кражи)
+        private readonly SyncVar<Vector3> _originalPosition = new();
+        private readonly SyncVar<Quaternion> _originalRotation = new();
+
         // ==================
         // Properties
         // ==================
@@ -49,20 +56,70 @@ namespace Gameplay
 
         /// <summary>
         /// Можно подобрать если брошен или чужой посаженный (не свой!)
+        /// ВАЖНО: Нельзя красть если у игрока уже есть свой живой LifeFruit
+        /// ВАЖНО: Нельзя красть если у владельца есть живые турели
+        /// ВАЖНО: Нельзя красть во время активной волны
         /// </summary>
         public bool CanBePickedUp(int playerId)
         {
             // Свой LifeFruit нельзя подбирать
             if (OwnerId == playerId) return false;
 
+            // Нельзя подобрать мёртвый LifeFruit
+            if (IsDead) return false;
+
+            // Нельзя нести (уже кто-то несёт)
+            if (_state.Value == LifeFruitState.Carried) return false;
+
+            // Нельзя красть во время активной волны
+            if (WaveManager.Instance != null && WaveManager.Instance.WaveActive)
+            {
+                Debug.Log($"[LifeFruit] Cannot steal - wave is active");
+                return false;
+            }
+
+            // Проверяем есть ли у игрока свой ЖИВОЙ LifeFruit (если есть - нельзя красть)
+            var playerLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
+            if (playerLifeFruit != null && playerLifeFruit.IsAlive)
+            {
+                // У игрока уже есть живой посаженный LifeFruit - красть нельзя
+                Debug.Log($"[LifeFruit] Player {playerId} cannot steal - has alive LifeFruit");
+                return false;
+            }
+
+            // Проверяем есть ли у владельца этого LifeFruit живые турели
+            int ownerTurretCount = TurretPlantManager.Instance?.GetTurretCount(OwnerId) ?? 0;
+            if (ownerTurretCount > 0)
+            {
+                // Сначала нужно уничтожить все турели владельца
+                Debug.Log($"[LifeFruit] Cannot steal - owner {OwnerId} has {ownerTurretCount} turrets");
+                return false;
+            }
+
             // Можно подобрать если брошен
             if (_state.Value == LifeFruitState.Dropped) return true;
 
-            // Можно подобрать чужой посаженный
+            // Можно подобрать чужой посаженный (только если у игрока нет своего живого)
             if (_state.Value == LifeFruitState.Planted) return true;
 
             return false;
         }
+
+        /// <summary>
+        /// Проверяет жив ли этот LifeFruit
+        /// </summary>
+        public bool IsDead => _health != null && _health.IsDead;
+
+        /// <summary>
+        /// Проверяет жив ли и посажен ли этот LifeFruit
+        /// </summary>
+        public bool IsAlive => !IsDead && _state.Value == LifeFruitState.Planted;
+
+        /// <summary>
+        /// Оригинальная позиция LifeFruit (куда нужно вернуть после кражи)
+        /// </summary>
+        public Vector3 OriginalPosition => _originalPosition.Value;
+        public Quaternion OriginalRotation => _originalRotation.Value;
 
         /// <summary>
         /// Время подбора (мгновенно если брошен, долго если посажен)
@@ -118,9 +175,13 @@ namespace Gameplay
         public override void OnStartServer()
         {
             base.OnStartServer();
-            
-            Debug.Log($"[Server] LifeFruit spawned for player {OwnerId}");
-            
+
+            // Сохраняем оригинальную позицию
+            _originalPosition.Value = transform.position;
+            _originalRotation.Value = transform.rotation;
+
+            Debug.Log($"[Server] LifeFruit spawned for player {OwnerId} at {transform.position}");
+
             RespawnManager.SetRespawnEnabled(OwnerId, true);
         }
         
@@ -329,7 +390,24 @@ namespace Gameplay
 
             NotifyPlayerInitializer();
 
-            // Деспавн обрабатывается в Health.Die(), не дублируем здесь
+            // Скрываем только модель плода, зона остаётся видимой
+            HideFruitModelObserversRpc();
+
+            // НЕ деспавним объект - зона должна остаться для понимания где можно посадить новый LifeFruit
+            // Отключаем коллайдер чтобы нельзя было взаимодействовать
+            if (_collider != null)
+            {
+                _collider.enabled = false;
+            }
+        }
+
+        [ObserversRpc]
+        private void HideFruitModelObserversRpc()
+        {
+            if (fruitModel != null)
+            {
+                fruitModel.SetActive(false);
+            }
         }
 
         [Server]
