@@ -11,6 +11,7 @@ namespace AI.Wave
     public enum WaveEnemyState
     {
         AttackingLifeFruit, // Атакует LifeFruit (основная цель)
+        ChasingCarrier,     // Преследует игрока несущего LifeFruit
         Aggro,              // Агрится на того кто его ударил
         Idle                // LifeFruit уничтожен - стоит на месте, агрится на ближайших
     }
@@ -52,6 +53,7 @@ namespace AI.Wave
         private NavMeshAgent _agent;
 
         private Transform _targetLifeFruit;
+        private LifeFruit _targetLifeFruitComponent; // Кэш компонента LifeFruit
         private Transform _currentTarget; // Текущая цель (LifeFruit, игрок или турель)
         private WaveEnemyState _state = WaveEnemyState.AttackingLifeFruit;
         private float _attackTimer;
@@ -127,6 +129,9 @@ namespace AI.Wave
                 case WaveEnemyState.AttackingLifeFruit:
                     UpdateAttackingLifeFruit();
                     break;
+                case WaveEnemyState.ChasingCarrier:
+                    UpdateChasingCarrier();
+                    break;
                 case WaveEnemyState.Aggro:
                     UpdateAggro();
                     break;
@@ -145,8 +150,37 @@ namespace AI.Wave
 
         private void UpdateState()
         {
-            // Проверяем жив ли целевой LifeFruit
+            // Проверяем жив ли целевой LifeFruit и несут ли его
             bool lifeFruitAlive = IsLifeFruitAlive();
+            bool lifeFruitCarried = IsLifeFruitBeingCarried();
+
+            // Если LifeFruit несут - переключаемся на преследование носителя
+            if (lifeFruitCarried && _state != WaveEnemyState.ChasingCarrier && _state != WaveEnemyState.Aggro)
+            {
+                Transform carrier = GetLifeFruitCarrier();
+                if (carrier != null)
+                {
+                    _state = WaveEnemyState.ChasingCarrier;
+                    _currentTarget = carrier;
+                    Debug.Log($"[WaveEnemy] LifeFruit is being carried - chasing carrier {carrier.name}");
+                }
+            }
+
+            // Если несли но уже не несут - возвращаемся к атаке LifeFruit
+            if (!lifeFruitCarried && _state == WaveEnemyState.ChasingCarrier)
+            {
+                if (lifeFruitAlive)
+                {
+                    _state = WaveEnemyState.AttackingLifeFruit;
+                    _currentTarget = _targetLifeFruit;
+                    Debug.Log($"[WaveEnemy] LifeFruit dropped - returning to attack LifeFruit");
+                }
+                else
+                {
+                    _state = WaveEnemyState.Idle;
+                    _currentTarget = null;
+                }
+            }
 
             // Если в режиме агро - проверяем таймер
             if (_state == WaveEnemyState.Aggro)
@@ -154,8 +188,17 @@ namespace AI.Wave
                 _aggroTimer -= Time.deltaTime;
                 if (_aggroTimer <= 0f || _currentTarget == null || IsTargetDead(_currentTarget))
                 {
-                    // Возвращаемся к атаке LifeFruit или переходим в Idle
-                    if (lifeFruitAlive)
+                    // Возвращаемся к атаке LifeFruit или преследованию носителя
+                    if (lifeFruitCarried)
+                    {
+                        Transform carrier = GetLifeFruitCarrier();
+                        if (carrier != null)
+                        {
+                            _state = WaveEnemyState.ChasingCarrier;
+                            _currentTarget = carrier;
+                        }
+                    }
+                    else if (lifeFruitAlive)
                     {
                         _state = WaveEnemyState.AttackingLifeFruit;
                         _currentTarget = _targetLifeFruit;
@@ -169,11 +212,65 @@ namespace AI.Wave
             }
 
             // Если LifeFruit уничтожен и мы не в агро - переходим в Idle
-            if (!lifeFruitAlive && _state == WaveEnemyState.AttackingLifeFruit)
+            if (!lifeFruitAlive && !lifeFruitCarried && _state == WaveEnemyState.AttackingLifeFruit)
             {
                 _state = WaveEnemyState.Idle;
                 _currentTarget = null;
                 Debug.Log($"[WaveEnemy] LifeFruit destroyed or dead - switching to Idle state");
+            }
+        }
+
+        /// <summary>
+        /// Проверяет несут ли целевой LifeFruit
+        /// </summary>
+        private bool IsLifeFruitBeingCarried()
+        {
+            if (_targetLifeFruitComponent == null)
+            {
+                CacheLifeFruitComponent();
+            }
+
+            return _targetLifeFruitComponent != null && _targetLifeFruitComponent.State == LifeFruitState.Carried;
+        }
+
+        /// <summary>
+        /// Получает Transform игрока который несёт LifeFruit
+        /// </summary>
+        private Transform GetLifeFruitCarrier()
+        {
+            if (_targetLifeFruitComponent == null)
+            {
+                CacheLifeFruitComponent();
+            }
+
+            if (_targetLifeFruitComponent == null || _targetLifeFruitComponent.State != LifeFruitState.Carried)
+            {
+                return null;
+            }
+
+            int carrierId = _targetLifeFruitComponent.CarrierId;
+            if (carrierId < 0) return null;
+
+            // Находим игрока-носителя
+            if (NetworkManager.ServerManager.Clients.TryGetValue(carrierId, out var conn))
+            {
+                return conn.FirstObject?.transform;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Кэширует компонент LifeFruit
+        /// </summary>
+        private void CacheLifeFruitComponent()
+        {
+            if (_targetLifeFruit == null) return;
+
+            _targetLifeFruitComponent = _targetLifeFruit.GetComponent<LifeFruit>();
+            if (_targetLifeFruitComponent == null)
+            {
+                _targetLifeFruitComponent = _targetLifeFruit.GetComponentInParent<LifeFruit>();
             }
         }
 
@@ -204,6 +301,41 @@ namespace AI.Wave
             }
 
             _currentTarget = _targetLifeFruit;
+            ChaseAndAttack(_currentTarget);
+        }
+
+        /// <summary>
+        /// Преследует игрока который несёт LifeFruit
+        /// </summary>
+        private void UpdateChasingCarrier()
+        {
+            // Проверяем что LifeFruit всё ещё несут
+            if (!IsLifeFruitBeingCarried())
+            {
+                // LifeFruit больше не несут - переключаемся обратно
+                if (IsLifeFruitAlive())
+                {
+                    _state = WaveEnemyState.AttackingLifeFruit;
+                    _currentTarget = _targetLifeFruit;
+                }
+                else
+                {
+                    _state = WaveEnemyState.Idle;
+                    _currentTarget = null;
+                }
+                return;
+            }
+
+            // Обновляем цель (позиция носителя могла измениться)
+            Transform carrier = GetLifeFruitCarrier();
+            if (carrier == null || IsTargetDead(carrier))
+            {
+                _state = WaveEnemyState.Idle;
+                _currentTarget = null;
+                return;
+            }
+
+            _currentTarget = carrier;
             ChaseAndAttack(_currentTarget);
         }
 

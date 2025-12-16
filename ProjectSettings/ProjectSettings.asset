@@ -826,7 +826,7 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Standalone: FISHY_FACEPUNCH;FISHY_STEAMWORKS;FISHNET;FISHNET_V4
+    Standalone: FISHY_FACEPUNCH;FISHY_STEAMWORKS;FISHNET;FISHNET_V4;STEAMWORKS_NET
   additionalCompilerArguments:
     Standalone:
     - 

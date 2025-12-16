@@ -6,6 +6,7 @@ using Core.Settings;
 using FischlWorks_FogWar;
 using Gameplay.TurretPlant;
 using Player;
+using AI.Wave;
 
 namespace Gameplay
 {
@@ -42,6 +43,10 @@ namespace Gameplay
         private csFogVisibilityAgent _visibilityAgent;
         private Collider _collider;
 
+        // Оригинальная позиция LifeFruit (для возврата после кражи)
+        private readonly SyncVar<Vector3> _originalPosition = new();
+        private readonly SyncVar<Quaternion> _originalRotation = new();
+
         // ==================
         // Properties
         // ==================
@@ -53,6 +58,7 @@ namespace Gameplay
         /// Можно подобрать если брошен или чужой посаженный (не свой!)
         /// ВАЖНО: Нельзя красть если у игрока уже есть свой живой LifeFruit
         /// ВАЖНО: Нельзя красть если у владельца есть живые турели
+        /// ВАЖНО: Нельзя красть во время активной волны
         /// </summary>
         public bool CanBePickedUp(int playerId)
         {
@@ -64,6 +70,13 @@ namespace Gameplay
 
             // Нельзя нести (уже кто-то несёт)
             if (_state.Value == LifeFruitState.Carried) return false;
+
+            // Нельзя красть во время активной волны
+            if (WaveManager.Instance != null && WaveManager.Instance.WaveActive)
+            {
+                Debug.Log($"[LifeFruit] Cannot steal - wave is active");
+                return false;
+            }
 
             // Проверяем есть ли у игрока свой ЖИВОЙ LifeFruit (если есть - нельзя красть)
             var playerLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
@@ -101,6 +114,12 @@ namespace Gameplay
         /// Проверяет жив ли и посажен ли этот LifeFruit
         /// </summary>
         public bool IsAlive => !IsDead && _state.Value == LifeFruitState.Planted;
+
+        /// <summary>
+        /// Оригинальная позиция LifeFruit (куда нужно вернуть после кражи)
+        /// </summary>
+        public Vector3 OriginalPosition => _originalPosition.Value;
+        public Quaternion OriginalRotation => _originalRotation.Value;
 
         /// <summary>
         /// Время подбора (мгновенно если брошен, долго если посажен)
@@ -156,9 +175,13 @@ namespace Gameplay
         public override void OnStartServer()
         {
             base.OnStartServer();
-            
-            Debug.Log($"[Server] LifeFruit spawned for player {OwnerId}");
-            
+
+            // Сохраняем оригинальную позицию
+            _originalPosition.Value = transform.position;
+            _originalRotation.Value = transform.rotation;
+
+            Debug.Log($"[Server] LifeFruit spawned for player {OwnerId} at {transform.position}");
+
             RespawnManager.SetRespawnEnabled(OwnerId, true);
         }
         
