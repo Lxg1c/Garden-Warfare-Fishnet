@@ -48,6 +48,7 @@ GameObject:
   - component: {fileID: 3483937006443647206}
   - component: {fileID: 6646945872860829552}
   - component: {fileID: 3336103262654198294}
+  - component: {fileID: 2401301094569296008}
   m_Layer: 8
   m_Name: PlantTurret
   m_TagString: Untagged
@@ -203,7 +204,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584358945836891139
+  _initializedTimestamp: -8584357024530894850
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -218,12 +219,12 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 19
+  <PrefabId>k__BackingField: 26
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 18209396647126375234
   SceneId: 0
   SerializedTransformProperties:
-    Position: {x: -16.6676, y: 1, z: 7.51}
+    Position: {x: 0, y: 1, z: 0}
     Rotation: {x: 0, y: 0, z: 0, w: 1}
     Scale: {x: 1, y: 2, z: 1}
     IsValid: 1
@@ -328,3 +329,18 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &2401301094569296008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4013289392074463182}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 985add12ee4836e40b7241671b1d892c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FischlWorks_FogWar.csFogVisibilityAgent
+  fogWar: {fileID: 0}
+  visibility: 0
+  additionalRadius: 0

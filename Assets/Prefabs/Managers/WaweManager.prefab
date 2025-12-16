@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &9134603084157589624
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2295025295133023967}
+  - component: {fileID: 7266775931398315054}
+  - component: {fileID: 2550491332758316335}
+  m_Layer: 0
+  m_Name: WaweManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2295025295133023967
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9134603084157589624}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7266775931398315054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9134603084157589624}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 523bf52ce7874c14b9f91293fc8c37fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AI.Wave.WaveManager
+  _componentIndexCache: 0
+  _addedNetworkObject: {fileID: 0}
+  _networkObjectCache: {fileID: 0}
+  firstWaveTime: 30
+  waveInterval: 45
+  baseEnemiesPerWave: 3
+  enemiesPerWaveIncrease: 2
+  healthScalePerWave: 0.15
+  damageScalePerWave: 0.1
+  speedScalePerWave: 0.05
+  waveEnemyPrefab: {fileID: 7177559545176657378, guid: d6a2833830f10424887cbaa25b8eb15f, type: 3}
+  spawnRadius: 15
+  spawnDelay: 0.5
+--- !u!114 &2550491332758316335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9134603084157589624}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09c95a569687ac0498457d58a1dd923e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.HUD.WaveUI.WaveUI
+  _componentIndexCache: 1
+  _addedNetworkObject: {fileID: 0}
+  _networkObjectCache: {fileID: 0}
+  waveText: {fileID: 0}
+  notificationText: {fileID: 0}
+  notificationPanel: {fileID: 0}
+  notificationDuration: 3
