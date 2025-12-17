@@ -21,6 +21,8 @@ namespace Gameplay
 
         private bool _isConnecting;
 
+        public GameObject settingsCanvas;
+
         private void Start()
         {
             _networkManager = InstanceFinder.NetworkManager;
@@ -36,6 +38,20 @@ namespace Gameplay
 
             if (_networkDiscovery != null)
                 _networkDiscovery.ServerFoundCallback += OnServerFound;
+        }
+
+        public void OnSettingsOpen()
+        {
+            if (settingsCanvas == null)
+            {
+                Debug.LogError("Settings Canvas is null! Make sure it's assigned in the inspector.");
+                return;
+            }
+
+            // Переключаем состояние: если активно - деактивируем, если неактивно - активируем
+            bool newState = !settingsCanvas.activeSelf;
+            settingsCanvas.SetActive(newState);
+            Debug.Log($"Settings Canvas {(newState ? "opened" : "closed")}");
         }
 
         private void OnDestroy()

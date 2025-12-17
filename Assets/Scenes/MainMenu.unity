@@ -1965,9 +1965,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: MenuManager, Assembly-CSharp
-        m_MethodName: OpenSettings
+      - m_Target: {fileID: 1753994203}
+        m_TargetAssemblyTypeName: Gameplay.LanConnectionManager, Assembly-CSharp
+        m_MethodName: OnSettingsOpen
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3181,9 +3181,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: MenuManager, Assembly-CSharp
-        m_MethodName: QuitApplication
+      - m_Target: {fileID: 1753994204}
+        m_TargetAssemblyTypeName: QuitGame, Assembly-CSharp
+        m_MethodName: OnQuitGame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -3231,6 +3231,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1438172474}
   m_CullTransparentMesh: 1
+--- !u!1 &1488368147 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 32064783859758629, guid: 30a239e05719db341a1669f30ec81d77, type: 3}
+  m_PrefabInstance: {fileID: 1262923366133923405}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1534008371
 GameObject:
   m_ObjectHideFlags: 0
@@ -3346,6 +3351,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1753994202}
   - component: {fileID: 1753994203}
+  - component: {fileID: 1753994204}
   m_Layer: 0
   m_Name: MainMenuManager
   m_TagString: Untagged
@@ -3382,6 +3388,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LanConnectionManager
   gameSceneName: Game
   searchTimeout: 1
+  settingsCanvas: {fileID: 1488368147}
+--- !u!114 &1753994204
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1753994201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98d718a7b20661f42b2c5e159608465f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuitGame
 --- !u!4 &1795690709 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3744d7aeaaad47e49982fd5c6e822667, type: 3}
