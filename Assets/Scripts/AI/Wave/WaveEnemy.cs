@@ -5,6 +5,7 @@ using Gameplay;
 using Gameplay.TurretPlant; // TurretBullet и TurretPlant
 using UnityEngine;
 using UnityEngine.AI;
+using Weapon.Projectile;
 
 namespace AI.Wave
 {
@@ -620,7 +621,7 @@ namespace AI.Wave
             }
 
             // Если урон от снаряда турели - ищем владельца снаряда
-            var bullet = attacker.GetComponent<TurretBullet>();
+            var bullet = attacker.GetComponent<Bullet>();
             if (bullet != null)
             {
                 Transform bulletOwner = bullet.GetOwnerTransform();

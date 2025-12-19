@@ -16,7 +16,7 @@ GameObject:
   - component: {fileID: 226193658288820841}
   - component: {fileID: 7177559545176657378}
   - component: {fileID: 6596392896282643041}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: WaveEnemy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -159,6 +159,8 @@ MonoBehaviour:
   enableRegen: 1
   regenPerSecond: 5
   regenDelay: 3
+  disableOnDeath: 1
+  despawnOnDeath: 1
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &7177559545176657378
 MonoBehaviour:
@@ -191,7 +193,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584359580869133787
+  _initializedTimestamp: -8584354618128625042
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -206,7 +208,7 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 0
+  <PrefabId>k__BackingField: 1
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 1796530341756312148
   SceneId: 0

@@ -35,9 +35,6 @@ namespace Core.Spawn
 
             Debug.Log("[GameSpawnManager] Server started - spawning all connected players");
 
-            // Подписываемся на загрузку сцены для новых клиентов
-            NetworkManager.SceneManager.OnClientLoadedStartScenes += OnClientLoadedScene;
-
             // Спавним всех уже подключенных игроков
             foreach (NetworkConnection conn in ServerManager.Clients.Values)
             {
@@ -59,10 +56,6 @@ namespace Core.Spawn
         public override void OnStopServer()
         {
             base.OnStopServer();
-            if (NetworkManager != null && NetworkManager.SceneManager != null)
-            {
-                NetworkManager.SceneManager.OnClientLoadedStartScenes -= OnClientLoadedScene;
-            }
             _spawnedPlayers.Clear();
         }
 
@@ -89,20 +82,6 @@ namespace Core.Spawn
             }
 
             SpawnPlayerInternal(conn);
-        }
-
-        /// <summary>
-        /// Вызывается когда клиент загрузил сцену
-        /// </summary>
-        private void OnClientLoadedScene(NetworkConnection conn, bool asServer)
-        {
-            if (!asServer) return;
-
-            // Спавним игрока если он ещё не заспавнен
-            if (!_spawnedPlayers.Contains(conn.ClientId))
-            {
-                SpawnPlayerInternal(conn);
-            }
         }
 
         [Server]

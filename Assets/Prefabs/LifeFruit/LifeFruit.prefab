@@ -166,8 +166,8 @@ MonoBehaviour:
   _componentIndexCache: 255
   _addedNetworkObject: {fileID: 1898140706116047032}
   _networkObjectCache: {fileID: 0}
-  initialHealth: 100
-  maxHealth: 100
+  initialHealth: 3000
+  maxHealth: 3000
   enableRegen: 1
   regenPerSecond: 5
   regenDelay: 3

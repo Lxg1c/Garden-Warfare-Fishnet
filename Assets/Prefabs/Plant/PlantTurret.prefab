@@ -204,7 +204,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584357024530894850
+  _initializedTimestamp: -8584354608821137443
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -248,11 +248,14 @@ MonoBehaviour:
   playerLayer:
     serializedVersion: 2
     m_Bits: 128
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 1024
   attackCooldown: 1.5
   attackDamage: 15
   wildChaseRange: 6
   wildReturnTimer: 3
-  turretBulletPrefab: {fileID: 2671650034059795408, guid: bf9997286568d6f4b8704a76bc4dd379, type: 3}
+  bulletPrefab: {fileID: 2671650034059795408, guid: 4f00208c7c4b0984fa237089cd6b16ed, type: 3}
   shootPoint: {fileID: 7387452648083526493}
   bulletForce: 15
   plantHeightOffset: 1

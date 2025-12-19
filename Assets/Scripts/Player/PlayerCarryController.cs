@@ -285,6 +285,13 @@ namespace Player
 
         private TurretPlant FindNearbyWildPlant()
         {
+            // Проверяем что у игрока есть живой LifeFruit
+            var myLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(OwnerId);
+            if (myLifeFruit == null || !myLifeFruit.IsAlive)
+            {
+                return null; // Нельзя подбирать семена без живого LifeFruit
+            }
+
             Collider[] hits = Physics.OverlapSphere(transform.position, interactRange, turretPlantLayer);
 
             TurretPlant closest = null;

@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 8323966917485891107}
   - component: {fileID: 979464400910819283}
   - component: {fileID: 3564249430932317508}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: NeutralPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -160,6 +160,8 @@ MonoBehaviour:
   enableRegen: 0
   regenPerSecond: 5
   regenDelay: 3
+  disableOnDeath: 1
+  despawnOnDeath: 1
   healthBarPrefab: {fileID: 1605861487293937988, guid: d62ccb4cddb296c4494b2e9256eba035, type: 3}
 --- !u!114 &8323966917485891107
 MonoBehaviour:

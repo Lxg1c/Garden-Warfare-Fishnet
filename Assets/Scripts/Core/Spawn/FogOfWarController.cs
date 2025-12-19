@@ -27,7 +27,7 @@ namespace Core.Spawn
             }
             _fogInstance = Instantiate(fogPrefab);
             _fogInstance.name = "Local Fog Of War";
-            _levelMidPoint = GameObject.Find("Floor");
+            _levelMidPoint = GameObject.Find("MidPoint");
             if (_levelMidPoint != null)
             {
                 _fogInstance.SetLevelMidPoint(_levelMidPoint.transform);

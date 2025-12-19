@@ -1,23 +1,17 @@
 ﻿using System;
 using FishNet.Object;
 using UnityEngine;
-using Core.Settings;
 using Core.Spawn;
 using FischlWorks_FogWar;
-using Player.Components;
 
 namespace Player
 {
     public class PlayerInitializer : NetworkBehaviour
     {
-        [Header("Dependencies")]
-        private RespawnManager _respawnManager;
-        
-        [Header("Spawn Settings")]
-        private Transform _defaultSpawnPoint;
-        
-        // Fog of war
+        [Header("Fog of War")]
+        [SerializeField] private int fogRevealRadius = 12;
         public FogOfWarController fogController;
+
         private csFogVisibilityAgent _visibilityAgent;
         
         // Events
@@ -29,7 +23,6 @@ namespace Player
             
             base.OnStartClient();
 
-            _defaultSpawnPoint = transform;
             _visibilityAgent = GetComponent<csFogVisibilityAgent>();
             
             if (fogController == null)
@@ -41,7 +34,7 @@ namespace Player
 
             if (fogController != null)
             {
-                fogController.InitializeForPlayer(transform, 6);
+                fogController.InitializeForPlayer(transform, fogRevealRadius);
                     
                 fogInstance = fogController.GetFogInstance();
                 if (fogInstance != null && _visibilityAgent != null)
@@ -69,61 +62,12 @@ namespace Player
         public override void OnStartServer()
         {
             base.OnStartServer();
-
-            if (_respawnManager == null)
-            {
-                _respawnManager = FindFirstObjectByType<RespawnManager>();
-            }
-
-            if (_respawnManager == null)
-            {
-                Debug.LogError("RespawnManager not found!");
-                return;
-            }
-
             Debug.Log($"PlayerInitializer: Player {OwnerId} connected");
-
-            InitializePlayerLifeFruit();
-        }
-
-        [Server]
-        private void InitializePlayerLifeFruit()
-        {
-            if (_respawnManager != null)
-            {
-                Transform spawnPoint = GetSpawnPoint();
-                Vector3 fruitPosition = spawnPoint.position + Vector3.up * 1f + Vector3.back * 2f;
-                _respawnManager.CreateLifeFruitForPlayer(OwnerId, fruitPosition);
-            }
-        }
-
-        [Server]
-        private Transform GetSpawnPoint()
-        {
-            PlayerInfo playerInfo = GetComponent<PlayerInfo>();
-            if (playerInfo != null && playerInfo.SpawnPoint != null)
-            {
-                return playerInfo.SpawnPoint;
-            }
-
-            if (GameSpawnManager.Instance != null)
-            {
-                Transform spawnPoint = GameSpawnManager.Instance.GetPlayerSpawnPoint(OwnerId);
-                if (spawnPoint != null) return spawnPoint;
-            }
-
-            return _defaultSpawnPoint != null ? _defaultSpawnPoint : transform;
         }
 
         public override void OnStopServer()
         {
             base.OnStopServer();
-            
-            if (_respawnManager != null)
-            {
-                _respawnManager.DestroyLifeFruitForPlayer(OwnerId);
-            }
-            
             Debug.Log($"PlayerInitializer: Player {OwnerId} disconnected");
         }
         

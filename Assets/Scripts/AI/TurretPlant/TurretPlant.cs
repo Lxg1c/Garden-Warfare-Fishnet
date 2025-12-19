@@ -5,6 +5,7 @@ using Core.Components;
 using FishNet.Object;
 using FishNet.Object.Synchronizing;
 using UnityEngine;
+using Weapon.Projectile;
 
 namespace Gameplay.TurretPlant
 {
@@ -15,6 +16,7 @@ namespace Gameplay.TurretPlant
         [SerializeField] private float detectionRange = 10f;
         [SerializeField] private float attackRange = 8f;
         [SerializeField] private LayerMask playerLayer;
+        [SerializeField] private LayerMask enemyLayer; // Слой для волновых мобов
 
         [Header("Attack Settings")]
         [SerializeField] private float attackCooldown = 0.5f; // Быстрая стрельба
@@ -25,7 +27,7 @@ namespace Gameplay.TurretPlant
         [SerializeField] private float wildReturnTimer = 3f;
 
         [Header("Projectile")]
-        [SerializeField] private GameObject turretBulletPrefab;
+        [SerializeField] private GameObject bulletPrefab;
         [SerializeField] private Transform shootPoint;
         [SerializeField] private float bulletForce = 15f;
 
@@ -313,15 +315,17 @@ namespace Gameplay.TurretPlant
 
         private Transform FindPlantedTarget()
         {
+            // Комбинируем слои игроков и врагов
+            LayerMask combinedLayers = playerLayer | enemyLayer;
+
             // Ищем других игроков (не владельца) И всех врагов волн
-            // Используем detectionRange для поиска
-            Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, playerLayer);
+            Collider[] hits = Physics.OverlapSphere(transform.position, detectionRange, combinedLayers);
 
             // Дебаг каждые 2 секунды
             if (Time.time - _lastTargetSearchTime > 2f)
             {
                 _lastTargetSearchTime = Time.time;
-                Debug.Log($"[TurretPlant] FindPlantedTarget: found {hits.Length} colliders in range {detectionRange}, owner={_plantedOwnerId.Value}");
+                Debug.Log($"[TurretPlant] FindPlantedTarget: found {hits.Length} colliders in range {detectionRange}, owner={_plantedOwnerId.Value}, layers={combinedLayers.value}");
             }
 
             Transform closest = null;
@@ -426,18 +430,18 @@ namespace Gameplay.TurretPlant
         [Server]
         private void ShootAt(Transform target)
         {
-            if (turretBulletPrefab == null) return;
+            if (bulletPrefab == null) return;
 
             Transform spawnPoint = shootPoint != null ? shootPoint : transform;
             Vector3 direction = (target.position - spawnPoint.position).normalized;
             Quaternion rotation = Quaternion.LookRotation(direction);
 
-            GameObject bullet = Instantiate(turretBulletPrefab, spawnPoint.position, rotation);
+            GameObject bullet = Instantiate(bulletPrefab, spawnPoint.position, rotation);
 
             ServerManager.Spawn(bullet);
 
-            // Настраиваем снаряд
-            var bulletScript = bullet.GetComponent<TurretBullet>();
+            // Настраиваем снаряд (используем универсальный Bullet)
+            var bulletScript = bullet.GetComponent<Bullet>();
             if (bulletScript != null)
             {
                 bulletScript.SetOwner(transform, _plantedOwnerId.Value);

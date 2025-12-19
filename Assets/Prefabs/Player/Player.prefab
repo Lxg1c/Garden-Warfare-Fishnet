@@ -982,7 +982,7 @@ MonoBehaviour:
   maxDistance: 5
   hitMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1024
 --- !u!4 &4006124739910520433 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7982187033567852196, guid: c97a396edc4eea145a4055b287ae15cd, type: 3}

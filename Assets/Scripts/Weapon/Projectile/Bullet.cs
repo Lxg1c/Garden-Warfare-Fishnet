@@ -1,9 +1,15 @@
-﻿using Core.Components;
+using Core.Components;
 using UnityEngine;
 using FishNet.Object;
 
 namespace Weapon.Projectile
 {
+    public enum BulletOwnerType
+    {
+        Player,
+        Turret
+    }
+
     [RequireComponent(typeof(Rigidbody))]
     public class Bullet : NetworkBehaviour
     {
@@ -14,17 +20,44 @@ namespace Weapon.Projectile
 
         private Transform _owner;
         private NetworkObject _ownerNetworkObject;
+        private int _ownerId = -1;
+        private BulletOwnerType _ownerType = BulletOwnerType.Player;
 
+        /// <summary>
+        /// Устанавливает владельца пули (игрок)
+        /// </summary>
         public void SetOwner(Transform owner)
         {
             _owner = owner;
             _ownerNetworkObject = owner != null ? owner.GetComponent<NetworkObject>() : null;
+            _ownerId = _ownerNetworkObject != null ? _ownerNetworkObject.OwnerId : -1;
+            _ownerType = BulletOwnerType.Player;
+        }
+
+        /// <summary>
+        /// Устанавливает владельца пули (турель)
+        /// </summary>
+        public void SetOwner(Transform turret, int ownerId)
+        {
+            _owner = turret;
+            _ownerNetworkObject = turret != null ? turret.GetComponent<NetworkObject>() : null;
+            _ownerId = ownerId;
+            _ownerType = BulletOwnerType.Turret;
         }
 
         public void SetDamage(float newDamage)
         {
             damage = Mathf.RoundToInt(newDamage);
         }
+
+        public void SetDamage(int newDamage)
+        {
+            damage = newDamage;
+        }
+
+        public Transform GetOwnerTransform() => _owner;
+        public int GetOwnerId() => _ownerId;
+        public BulletOwnerType GetOwnerType() => _ownerType;
 
         public override void OnStartNetwork()
         {
@@ -36,16 +69,34 @@ namespace Weapon.Projectile
             }
         }
 
-        // Движение пули обрабатывается физикой через AddForce в WeaponController.SpawnBullet()
-        // Не используем FixedUpdate + MovePosition чтобы избежать двойного движения
-
         private void OnTriggerEnter(Collider other)
         {
             if (!IsServerInitialized) return;
 
+            // Не бьём владельца
             if (_owner != null && other.transform == _owner) return;
 
-            // Ищем Health на самом объекте ИЛИ на родителях (для случая когда коллайдер на дочернем объекте)
+            // Проверяем NetworkObject на объекте или родителе
+            var netObj = other.GetComponent<NetworkObject>();
+            if (netObj == null) netObj = other.GetComponentInParent<NetworkObject>();
+
+            // Не бьём владельца по OwnerId
+            if (netObj != null && netObj.OwnerId == _ownerId) return;
+
+            // Специфичные проверки для турели
+            if (_ownerType == BulletOwnerType.Turret)
+            {
+                // Турель не бьёт нейтралов
+                if (other.GetComponent<AI.Neutral.Neutral>() != null) return;
+                if (other.GetComponentInParent<AI.Neutral.Neutral>() != null) return;
+
+                // Турель не бьёт другие турели того же владельца
+                var turret = other.GetComponent<Gameplay.TurretPlant.TurretPlant>();
+                if (turret == null) turret = other.GetComponentInParent<Gameplay.TurretPlant.TurretPlant>();
+                if (turret != null && turret.PlantedOwnerId == _ownerId) return;
+            }
+
+            // Ищем Health на самом объекте ИЛИ на родителях
             Health hp = other.GetComponent<Health>();
             if (hp == null)
             {
@@ -54,12 +105,11 @@ namespace Weapon.Projectile
 
             if (hp != null)
             {
-                Debug.Log($"Пытаемся нанести урон объекту {hp.name}");
                 hp.TakeDamage(damage, _owner, _ownerNetworkObject);
+                Debug.Log($"[Bullet] Hit {hp.name} for {damage} damage (owner type: {_ownerType})");
             }
             else
             {
-                Debug.Log($"Нет компонента здоровья на {other.name}");
                 SpawnImpactEffect();
             }
 
@@ -87,7 +137,6 @@ namespace Weapon.Projectile
             if (NetworkObject != null && NetworkObject.IsSpawned)
             {
                 SpawnImpactEffect();
-                
                 NetworkObject.Despawn();
             }
         }

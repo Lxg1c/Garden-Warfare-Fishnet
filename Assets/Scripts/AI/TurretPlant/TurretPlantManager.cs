@@ -87,9 +87,9 @@ namespace Gameplay.TurretPlant
             }
 
             LifeFruit lifeFruit = FindLifeFruitForPlayer(playerId);
-            if (lifeFruit == null)
+            if (lifeFruit == null || !lifeFruit.IsAlive)
             {
-                Debug.Log($"[TurretPlantManager] Player {playerId} has no LifeFruit");
+                Debug.Log($"[TurretPlantManager] Player {playerId} has no alive LifeFruit");
                 return false;
             }
 
