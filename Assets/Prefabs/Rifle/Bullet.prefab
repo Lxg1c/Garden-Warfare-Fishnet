@@ -33,7 +33,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0.000000044894346, y: -0.0000006705521, z: 0.00000015389617, w: 1}
   m_LocalPosition: {x: 0, y: 1.301, z: 1.017}
-  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -237,7 +237,7 @@ MonoBehaviour:
   _initializeOrder: 0
   _preventDespawnOnDisconnect: 0
   _defaultDespawnType: 0
-  _initializedTimestamp: -8584357047592197803
+  _initializedTimestamp: -8584352739108226111
   NetworkObserver: {fileID: 0}
   _enablePrediction: 0
   _predictionType: 0
@@ -252,12 +252,12 @@ MonoBehaviour:
   _spectatorInterpolation: 2
   _enableTeleport: 0
   _teleportThreshold: 1
-  <PrefabId>k__BackingField: 4
+  <PrefabId>k__BackingField: 6
   <SpawnableCollectionId>k__BackingField: 0
   <AssetPathHash>k__BackingField: 3984789969790467729
   SceneId: 0
   SerializedTransformProperties:
     Position: {x: 0, y: 1.301, z: 1.017}
     Rotation: {x: 0.000000044894346, y: -0.0000006705521, z: 0.00000015389617, w: 1}
-    Scale: {x: 0.1, y: 0.1, z: 0.1}
+    Scale: {x: 0.5, y: 0.5, z: 0.5}
     IsValid: 1

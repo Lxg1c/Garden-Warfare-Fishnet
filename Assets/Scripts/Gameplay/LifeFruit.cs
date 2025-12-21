@@ -43,6 +43,9 @@ namespace Gameplay
         private csFogVisibilityAgent _visibilityAgent;
         private Collider _collider;
 
+        // Для отмены урона от владельца
+        private float _healthBeforeDamage;
+
         // Оригинальная позиция LifeFruit (для возврата после кражи)
         private readonly SyncVar<Vector3> _originalPosition = new();
         private readonly SyncVar<Quaternion> _originalRotation = new();
@@ -179,6 +182,9 @@ namespace Gameplay
             // Сохраняем оригинальную позицию
             _originalPosition.Value = transform.position;
             _originalRotation.Value = transform.rotation;
+
+            // Инициализируем здоровье для отмены урона
+            _healthBeforeDamage = _health.GetHealth();
 
             Debug.Log($"[Server] LifeFruit spawned for player {OwnerId} at {transform.position}");
 
@@ -361,9 +367,22 @@ namespace Gameplay
         // DAMAGE HANDLING
         // ==================
 
+        private void LateUpdate()
+        {
+            // Сохраняем текущее здоровье в конце кадра для возможности отмены урона в следующем
+            if (_health != null && !_health.IsDead)
+            {
+                _healthBeforeDamage = _health.GetHealth();
+            }
+        }
+
         private void OnDamaged(Transform attacker)
         {
             if (!IsServerInitialized) return;
+
+            // Вычисляем нанесённый урон
+            float currentHealth = _health.GetHealth();
+            float damageDealt = _healthBeforeDamage - currentHealth;
 
             if (attacker != null)
             {
@@ -371,13 +390,14 @@ namespace Gameplay
 
                 if (attackerNo != null && attackerNo.OwnerId == OwnerId)
                 {
-                    Debug.Log($"[Server] LifeFruit({OwnerId}) ignored self damage");
-                    _health.SetHealth(_health.GetMaxHealth());
+                    // Отменяем урон - восстанавливаем здоровье до значения перед уроном
+                    Debug.Log($"[Server] LifeFruit({OwnerId}) ignored self damage ({damageDealt}), restoring to {_healthBeforeDamage}");
+                    _health.SetHealth(_healthBeforeDamage);
                     return;
                 }
             }
 
-            Debug.Log($"[Server] LifeFruit({OwnerId}) took damage from {attacker?.name}");
+            Debug.Log($"[Server] LifeFruit({OwnerId}) took {damageDealt} damage from {attacker?.name}, health: {currentHealth}");
         }
 
         private void OnDeath()

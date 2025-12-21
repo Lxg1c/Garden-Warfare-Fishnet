@@ -179,11 +179,6 @@ namespace AI.Neutral
             if (dist <= 0.5f)
             {
                 SetState(AiState.Idle);
-                // Восстанавливаем здоровье при возврате домой
-                if (_health != null && IsServerStarted)
-                {
-                    _health.SetHealth(_health.GetMaxHealth());
-                }
                 return;
             }
 

@@ -116,6 +116,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Neutral (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 979464400910819283, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
+      propertyPath: WasActiveDuringEdit
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1725168857277361973, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
       propertyPath: WasActiveDuringEdit
       value: 1
@@ -222,6 +226,10 @@ PrefabInstance:
     - target: {fileID: 276308323977331136, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
       propertyPath: m_Name
       value: Neutral (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 979464400910819283, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
+      propertyPath: WasActiveDuringEdit
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1725168857277361973, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
       propertyPath: WasActiveDuringEdit
@@ -378,6 +386,10 @@ PrefabInstance:
     - target: {fileID: 276308323977331136, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
       propertyPath: m_Name
       value: Neutral
+      objectReference: {fileID: 0}
+    - target: {fileID: 979464400910819283, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
+      propertyPath: WasActiveDuringEdit
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1725168857277361973, guid: 28a436c8ae13b2d4cb94288811cf7d67, type: 3}
       propertyPath: WasActiveDuringEdit

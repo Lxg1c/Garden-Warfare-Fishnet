@@ -1,345 +1,277 @@
 using System.Collections.Generic;
+using FishNet.Managing.Scened;
 using TMPro;
-using UnityEngine.UI;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using SceneManager = UnityEngine.SceneManagement.SceneManager;
 
 namespace UI.Menu
 {
     public class SettingsManager : MonoBehaviour
-{
-    [Header("FPS Settings")]
-    public Slider fpsSlider;
-    public TMP_Text fpsText;
-    public TMP_InputField fpsInputField;
-    public int minFPS = 60;
-    public int maxFPS = 240; 
-
-    [Header("Resolution Settings")]
-    public TMP_Dropdown resolutionDropdown;
-    private Resolution[] _allResolutions;
-    private List<string> _resolutionOptions;
-    private int _currentResolutionIndex;
-
-    [Header("Screen Mode Settings")]
-    public TMP_Dropdown screenModeDropdown;
-    private FullScreenMode _currentFullScreenMode;
-
-    [Header("UI References")]
-    public GameObject settingsCanvas;
-    private PlayerInputActions _playerInputActions;
-
-    void Awake()
     {
-        _playerInputActions = new PlayerInputActions();
-        _playerInputActions.UI.Escape.performed += _ => OnEscapePressed();
-    }
-
-    private void Start()
-    {
-        if (fpsSlider != null)
-        {
-            fpsSlider.minValue = minFPS;
-            fpsSlider.maxValue = maxFPS;
-            fpsSlider.onValueChanged.AddListener(SetFPSFromSlider);
-            fpsSlider.value = Application.targetFrameRate == -1 ? maxFPS : Application.targetFrameRate;
-        }
-        if (fpsInputField != null)
-        {
-            fpsInputField.onEndEdit.AddListener(SetFPSFromInputField);
-        }
-        UpdateFpsUi(Application.targetFrameRate == -1 ? maxFPS : Application.targetFrameRate);
+        [Header("FPS Settings")]
+        public TMP_Dropdown fpsDropdown;
         
-        if (screenModeDropdown != null)
+
+        private readonly int[] _fpsOptions =
         {
+            30,
+            60,
+            90,
+            120,
+            144,
+            240,
+            -1 // Unlimited
+        };
+
+        [Header("Resolution Settings")]
+        public TMP_Dropdown resolutionDropdown;
+        private Resolution[] _allResolutions;
+        private List<string> _resolutionOptions = new List<string>();
+        private int _currentResolutionIndex;
+
+        [Header("Screen Mode Settings")]
+        public TMP_Dropdown screenModeDropdown;
+        private FullScreenMode _currentFullScreenMode;
+
+        [Header("UI References")]
+        public GameObject settingsCanvas;
+        private PlayerInputActions _playerInputActions;
+
+        private void Awake()
+        {
+            _playerInputActions = new PlayerInputActions();
+            _playerInputActions.UI.Escape.performed += _ => OnEscapePressed();
+        }
+
+        private void Start()
+        {
+            InitializeFpsDropdown();
+            InitializeScreenModeDropdown();
+
+            LoadSettings();
+
+            if (resolutionDropdown != null)
+                resolutionDropdown.onValueChanged.AddListener(SetResolution);
+        }
+
+        // ================= FPS =================
+
+        private void InitializeFpsDropdown()
+        {
+            if (fpsDropdown == null) return;
+
+            fpsDropdown.ClearOptions();
+            List<string> options = new List<string>();
+
+            foreach (int fps in _fpsOptions)
+                options.Add(fps == -1 ? "пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ" : $"{fps} FPS");
+
+            fpsDropdown.AddOptions(options);
+            fpsDropdown.onValueChanged.AddListener(SetFPS);
+        }
+
+        private void SetFPS(int index)
+        {
+            if (index < 0 || index >= _fpsOptions.Length) return;
+
+            int fps = _fpsOptions[index];
+            Application.targetFrameRate = fps;
+
+            PlayerPrefs.SetInt("TargetFPS", fps);
+            PlayerPrefs.Save();
+        }
+
+        // ================= SCREEN MODE =================
+
+        private void InitializeScreenModeDropdown()
+        {
+            if (screenModeDropdown == null) return;
+
             screenModeDropdown.ClearOptions();
-            List<string> modeOptions = new List<string>
+            screenModeDropdown.AddOptions(new List<string>
             {
-                "Полноэкранный",      
-                "Полноэкранный в окне",
-                "Оконный" 
-            };
-            screenModeDropdown.AddOptions(modeOptions);
+                "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ",
+                "пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ",
+                "пїЅпїЅпїЅпїЅпїЅпїЅпїЅ"
+            });
+
             screenModeDropdown.onValueChanged.AddListener(SetScreenMode);
         }
-        LoadSettings();
-        
-        if (resolutionDropdown != null)
+
+        public void SetScreenMode(int index)
         {
-            // Здесь мы не очищаем и не добавляем опции, так как это уже сделано в InitializeResolutions
-            // во время вызова LoadSettings -> SetScreenMode -> InitializeResolutions.
-            // Просто убедимся, что слушатель добавлен.
-            resolutionDropdown.onValueChanged.AddListener(SetResolution);
-        }
-
-        Debug.Log("Initial Screen FullScreenMode: " + Screen.fullScreenMode + " Width: " + Screen.width + " Height: " + Screen.height);
-    }
-
-    private void InitializeResolutions()
-    {
-        _resolutionOptions.Clear();
-        _allResolutions = Screen.resolutions;
-
-        HashSet<string> uniqueResolutionStrings = new HashSet<string>();
-
-        foreach (var res in _allResolutions)
-        {
-            // Для оконных режимов, можем показывать только разрешения, которые "подходят"
-            // к текущему монитору, но для простоты пока показываем все уникальные по размеру.
-            // Unity сама будет применять их с учетом ограничений режима.
-            string option = res.width + " x " + res.height;
-
-            if (!uniqueResolutionStrings.Contains(option))
+            FullScreenMode newMode = index switch
             {
-                _resolutionOptions.Add(option);
-                uniqueResolutionStrings.Add(option);
-            }
-        }
-        
-        _resolutionOptions.Sort((res1, res2) =>
-        {
-            string[] parts1 = res1.Split('x');
-            string[] parts2 = res2.Split('x');
-            int w1 = int.Parse(parts1[0].Trim());
-            int h1 = int.Parse(parts1[1].Trim());
-            int w2 = int.Parse(parts2[0].Trim());
-            int h2 = int.Parse(parts2[1].Trim());
-
-            if (w1 != w2) return w1.CompareTo(w2);
-            return h1.CompareTo(h2);
-        });
-        
-        if (resolutionDropdown != null)
-        {
-            resolutionDropdown.ClearOptions();
-            resolutionDropdown.AddOptions(_resolutionOptions);
-            // Устанавливаем значение Dropdown на текущее разрешение или ближайшее к нему
-            UpdateResolutionDropdownValue();
-        }
-        Debug.Log("Resolutions Initialized for mode: " + _currentFullScreenMode + ". Count: " + _resolutionOptions.Count);
-    }
-
-    public void SetFPSFromSlider(float fpsValue)
-    {
-        int fps = Mathf.RoundToInt(fpsValue);
-        SetTargetFPS(fps);
-        UpdateFpsUi(fps);
-    }
-
-    public void SetFPSFromInputField(string fpsString)
-    {
-        int fps;
-        if (int.TryParse(fpsString, out fps)) 
-        {
-            fps = Mathf.Clamp(fps, minFPS, maxFPS);
-            SetTargetFPS(fps);
-            UpdateFpsUi(fps);
-        }
-        else
-        {
-            UpdateFpsUi(Application.targetFrameRate == -1 ? maxFPS : Application.targetFrameRate);
-        }
-    }
-
-    private void UpdateFpsUi(int fps)
-    {
-        if (fpsSlider != null) fpsSlider.value = fps;
-        if (fpsText != null) fpsText.text = "FPS: " + fps;
-        if (fpsInputField != null) fpsInputField.text = fps.ToString();
-    }
-
-    private void SetTargetFPS(int fps)
-    {
-        Application.targetFrameRate = fps;
-        PlayerPrefs.SetInt("TargetFPS", fps); 
-        PlayerPrefs.Save();
-    }
-
-    public void SetResolution(int resolutionIndex)
-    {
-        if (resolutionIndex >= 0 && resolutionIndex < _resolutionOptions.Count)
-        {
-            string selectedOption = _resolutionOptions[resolutionIndex];
-            string[] parts = selectedOption.Split('x');
-            int width = int.Parse(parts[0].Trim());
-            int height = int.Parse(parts[1].Trim());
-
-            Resolution bestResolution = new Resolution
-            {
-                width = width, height = height, refreshRateRatio = new RefreshRate { numerator = 0, denominator = 1 }
+                0 => FullScreenMode.ExclusiveFullScreen,
+                1 => FullScreenMode.FullScreenWindow,
+                2 => FullScreenMode.Windowed,
+                _ => FullScreenMode.FullScreenWindow
             };
-            
-            int maxRefreshRate = 0;
-            foreach (var res in _allResolutions)
-            {
-                if (res.width == width && res.height == height)
-                {
-                    // Unity 2021+ использует refreshRateRatio.value
-                    if (res.refreshRateRatio.value > maxRefreshRate)
-                    {
-                        maxRefreshRate = (int)res.refreshRateRatio.value;
-                        bestResolution = res;
-                    }
-                }
-            }
 
-            Screen.SetResolution(bestResolution.width, bestResolution.height, _currentFullScreenMode, bestResolution.refreshRateRatio);
-            PlayerPrefs.SetInt("ResolutionWidth", bestResolution.width);
-            PlayerPrefs.SetInt("ResolutionHeight", bestResolution.height);
-            PlayerPrefs.Save();
+            if (_currentFullScreenMode == newMode) return;
 
-            _currentResolutionIndex = resolutionIndex;
-            Debug.Log($"Resolution set to: {bestResolution.width}x{bestResolution.height} @ {bestResolution.refreshRateRatio.value}Hz, Mode: {_currentFullScreenMode}");
-        }
-    }
-
-    public void SetScreenMode(int modeIndex)
-    {
-        FullScreenMode newMode;
-        switch (modeIndex)
-        {
-            case 0: 
-                newMode = FullScreenMode.ExclusiveFullScreen;
-                break;
-            case 1: 
-                newMode = FullScreenMode.FullScreenWindow;
-                break;
-            case 2:
-                newMode = FullScreenMode.Windowed;
-                break;
-            default:
-                newMode = FullScreenMode.FullScreenWindow;
-                break;
-        }
-
-        if (_currentFullScreenMode != newMode)
-        {
             _currentFullScreenMode = newMode;
             Screen.SetResolution(Screen.width, Screen.height, _currentFullScreenMode);
+
             PlayerPrefs.SetInt("FullScreenMode", (int)_currentFullScreenMode);
             PlayerPrefs.Save();
 
-            // Переинициализируем разрешения, так как доступные разрешения могут измениться
-            // в зависимости от нового режима экрана (хотя Unity может сама адаптировать)
             InitializeResolutions();
             UpdateResolutionDropdownValue();
-            Debug.Log("Screen Mode set to: " + _currentFullScreenMode);
         }
-    }
-    
-    private void UpdateResolutionDropdownValue()
-    {
-        if (resolutionDropdown != null)
+
+        // ================= RESOLUTION =================
+
+        private void InitializeResolutions()
         {
-            _currentResolutionIndex = 0;
-            string currentResString = Screen.width + " x " + Screen.height;
-            for (int i = 0; i < _resolutionOptions.Count; i++)
+            _resolutionOptions.Clear();
+            _allResolutions = Screen.resolutions;
+
+            HashSet<string> unique = new HashSet<string>();
+
+            foreach (var res in _allResolutions)
             {
-                if (_resolutionOptions[i] == currentResString)
+                string option = $"{res.width} x {res.height}";
+                if (unique.Add(option))
+                    _resolutionOptions.Add(option);
+            }
+
+            _resolutionOptions.Sort((a, b) =>
+            {
+                var pa = a.Split('x');
+                var pb = b.Split('x');
+                int wa = int.Parse(pa[0]);
+                int wb = int.Parse(pb[0]);
+                return wa != wb ? wa.CompareTo(wb) : int.Parse(pa[1]).CompareTo(int.Parse(pb[1]));
+            });
+
+            if (resolutionDropdown == null) return;
+
+            resolutionDropdown.ClearOptions();
+            resolutionDropdown.AddOptions(_resolutionOptions);
+        }
+
+        public void SetResolution(int index)
+        {
+            if (index < 0 || index >= _resolutionOptions.Count) return;
+
+            string[] parts = _resolutionOptions[index].Split('x');
+            int width = int.Parse(parts[0]);
+            int height = int.Parse(parts[1]);
+
+            Resolution best = default;
+            int maxHz = 0;
+
+            foreach (var res in _allResolutions)
+            {
+                if (res.width == width && res.height == height &&
+                    res.refreshRateRatio.value > maxHz)
                 {
-                    _currentResolutionIndex = i;
-                    break;
+                    best = res;
+                    maxHz = (int)res.refreshRateRatio.value;
                 }
             }
+
+            Screen.SetResolution(best.width, best.height, _currentFullScreenMode, best.refreshRateRatio);
+
+            PlayerPrefs.SetInt("ResolutionWidth", best.width);
+            PlayerPrefs.SetInt("ResolutionHeight", best.height);
+            PlayerPrefs.Save();
+        }
+
+        private void UpdateResolutionDropdownValue()
+        {
+            if (resolutionDropdown == null) return;
+
+            string current = $"{Screen.width} x {Screen.height}";
+            _currentResolutionIndex = _resolutionOptions.IndexOf(current);
+            if (_currentResolutionIndex < 0) _currentResolutionIndex = 0;
+
             resolutionDropdown.value = _currentResolutionIndex;
             resolutionDropdown.RefreshShownValue();
         }
-    }
 
-    public void LoadSettings()
-    {
-        // --- Загрузка FPS ---
-        int savedFPS = PlayerPrefs.GetInt("TargetFPS", -1);
-        if (savedFPS == -1) savedFPS = maxFPS;
-        SetTargetFPS(savedFPS);
-        UpdateFpsUi(savedFPS);
+        // ================= LOAD =================
 
-        // --- Загрузка режима экрана ---
-        // По умолчанию FullScreenWindow (FullScreen Optimized)
-        int savedScreenModeInt = PlayerPrefs.GetInt("FullScreenMode", (int)FullScreenMode.FullScreenWindow);
-        _currentFullScreenMode = (FullScreenMode)savedScreenModeInt;
-
-        if (screenModeDropdown != null)
+        private void LoadSettings()
         {
-            switch (_currentFullScreenMode)
+            // FPS
+            int savedFPS = PlayerPrefs.GetInt("TargetFPS", -1);
+            Application.targetFrameRate = savedFPS;
+
+            if (fpsDropdown != null)
             {
-                case FullScreenMode.ExclusiveFullScreen:
-                    screenModeDropdown.value = 0;
-                    break;
-                case FullScreenMode.FullScreenWindow:
-                    screenModeDropdown.value = 1;
-                    break;
-                case FullScreenMode.Windowed:
-                    screenModeDropdown.value = 2;
-                    break;
-                default:
-                    screenModeDropdown.value = 1;
-                    break;
+                int fpsIndex = System.Array.IndexOf(_fpsOptions, savedFPS);
+                fpsDropdown.value = fpsIndex >= 0 ? fpsIndex : 0;
+                fpsDropdown.RefreshShownValue();
             }
-            screenModeDropdown.RefreshShownValue();
-        }
 
-        // Применяем режим экрана перед загрузкой разрешения,
-        // чтобы InitializeResolutions работал с правильным контекстом.
-        Screen.SetResolution(Screen.width, Screen.height, _currentFullScreenMode);
-        Debug.Log("Loaded Screen Mode: " + _currentFullScreenMode);
+            // Screen mode
+            _currentFullScreenMode = (FullScreenMode)PlayerPrefs.GetInt(
+                "FullScreenMode",
+                (int)FullScreenMode.FullScreenWindow
+            );
 
-        // --- Инициализация и загрузка разрешения ---
-        InitializeResolutions();
-        
-        int savedWidth = PlayerPrefs.GetInt("ResolutionWidth", Screen.currentResolution.width);
-        int savedHeight = PlayerPrefs.GetInt("ResolutionHeight", Screen.currentResolution.height);
-
-      
-        _currentResolutionIndex = 0;
-        string savedResString = savedWidth + " x " + savedHeight;
-        for (int i = 0; i < _resolutionOptions.Count; i++)
-        {
-            if (_resolutionOptions[i] == savedResString)
+            if (screenModeDropdown != null)
             {
-                _currentResolutionIndex = i;
-                break;
+                screenModeDropdown.value = _currentFullScreenMode switch
+                {
+                    FullScreenMode.ExclusiveFullScreen => 0,
+                    FullScreenMode.FullScreenWindow => 1,
+                    FullScreenMode.Windowed => 2,
+                    _ => 1
+                };
+                screenModeDropdown.RefreshShownValue();
+            }
+
+            Screen.SetResolution(Screen.width, Screen.height, _currentFullScreenMode);
+
+            InitializeResolutions();
+
+            int w = PlayerPrefs.GetInt("ResolutionWidth", Screen.width);
+            int h = PlayerPrefs.GetInt("ResolutionHeight", Screen.height);
+            _currentResolutionIndex = _resolutionOptions.IndexOf($"{w} x {h}");
+            if (_currentResolutionIndex < 0) _currentResolutionIndex = 0;
+
+            SetResolution(_currentResolutionIndex);
+
+            if (resolutionDropdown != null)
+            {
+                resolutionDropdown.value = _currentResolutionIndex;
+                resolutionDropdown.RefreshShownValue();
             }
         }
-        
-        SetResolution(_currentResolutionIndex);
 
-        if (resolutionDropdown != null)
+        // ================= UI =================
+
+        public void OnEscapePressed()
         {
-            resolutionDropdown.value = _currentResolutionIndex;
-            resolutionDropdown.RefreshShownValue();
+            if (settingsCanvas != null)
+            {
+                settingsCanvas.SetActive(!settingsCanvas.activeSelf);
+                
+                if (settingsCanvas.activeSelf)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                }
+                else
+                {
+                    Cursor.lockState = CursorLockMode.Confined;
+                    Cursor.visible = true;
+                }
+            }
         }
-    }
 
-    private void OnEscapePressed()
-    {
-        Debug.Log("Escape pressed");
-        if (settingsCanvas != null && settingsCanvas.activeSelf)
+        public void GoToMainMenu()
         {
-            CloseSettings();
+            SceneManager.LoadScene("MainMenu");
         }
-    }
 
-    public void CloseSettings()
-    {
-        if (settingsCanvas != null)
-        {
-            settingsCanvas.SetActive(false);
-        }
-        Debug.Log("Settings closed.");
-    }
+        private void OnEnable() => _playerInputActions.Enable();
+        private void OnDisable() => _playerInputActions.Disable();
 
-    void OnEnable()
-    {
-        _playerInputActions.Enable();
+        public void QuitToMenu() => Application.Quit();
     }
-
-    void OnDisable()
-    {
-        _playerInputActions.Disable();
-    }
-    public void QuitToMenu()
-    {
-        Application.Quit();
-    }
-}
 }

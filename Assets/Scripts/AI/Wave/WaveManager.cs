@@ -5,7 +5,6 @@ using FishNet.Object.Synchronizing;
 using Gameplay;
 using Gameplay.TurretPlant;
 using UI.HUD.GameTimer;
-using UI.HUD.WaveUI;
 using UnityEngine;
 
 namespace AI.Wave
@@ -67,6 +66,7 @@ namespace AI.Wave
 
         public int CurrentWave => _currentWave.Value;
         public bool WaveActive => _waveActive.Value;
+        public float NextWaveTime => _nextWaveTime;
 
         // ==================
         // Lifecycle
@@ -446,26 +446,12 @@ namespace AI.Wave
         private void NotifyWaveStartObserversRpc(int waveNumber, int enemyCount)
         {
             Debug.Log($"[WaveManager] WAVE {waveNumber} - {enemyCount} enemies incoming!");
-
-            // Показываем UI
-            var waveUI = FindFirstObjectByType<WaveUI>();
-            if (waveUI != null)
-            {
-                waveUI.ShowWaveStart(waveNumber, enemyCount);
-            }
         }
 
         [ObserversRpc]
         private void NotifyWaveEndObserversRpc(int waveNumber)
         {
             Debug.Log($"[WaveManager] Wave {waveNumber} cleared!");
-
-            // Показываем UI
-            var waveUI = FindFirstObjectByType<WaveUI>();
-            if (waveUI != null)
-            {
-                waveUI.ShowWaveCleared(waveNumber);
-            }
         }
 
         [ObserversRpc]
@@ -478,14 +464,6 @@ namespace AI.Wave
             else
             {
                 Debug.Log($"[WaveManager] GAME OVER - Player {winnerId} WINS!");
-            }
-
-            // Показываем UI
-            var waveUI = FindFirstObjectByType<WaveUI>();
-            if (waveUI != null)
-            {
-                int localPlayerId = NetworkManager?.ClientManager?.Connection?.FirstObject?.OwnerId ?? -1;
-                waveUI.ShowGameOver(winnerId, isDraw, localPlayerId);
             }
         }
 

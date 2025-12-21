@@ -433,10 +433,15 @@ namespace Gameplay.TurretPlant
             if (bulletPrefab == null) return;
 
             Transform spawnPoint = shootPoint != null ? shootPoint : transform;
-            Vector3 direction = (target.position - spawnPoint.position).normalized;
+
+            // Целимся в центр массы врага
+            Vector3 targetPoint = target.position;
+            Vector3 spawnPos = spawnPoint.position;
+
+            Vector3 direction = (targetPoint - spawnPos).normalized;
             Quaternion rotation = Quaternion.LookRotation(direction);
 
-            GameObject bullet = Instantiate(bulletPrefab, spawnPoint.position, rotation);
+            GameObject bullet = Instantiate(bulletPrefab, spawnPos, rotation);
 
             ServerManager.Spawn(bullet);
 

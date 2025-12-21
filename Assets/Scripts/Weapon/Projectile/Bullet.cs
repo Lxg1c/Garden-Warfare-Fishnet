@@ -7,7 +7,8 @@ namespace Weapon.Projectile
     public enum BulletOwnerType
     {
         Player,
-        Turret
+        Turret,
+        Bot
     }
 
     [RequireComponent(typeof(Rigidbody))]
@@ -45,6 +46,17 @@ namespace Weapon.Projectile
             _ownerType = BulletOwnerType.Turret;
         }
 
+        /// <summary>
+        /// Устанавливает владельца пули (бот)
+        /// </summary>
+        public void SetBotOwner(Transform bot, int botId)
+        {
+            _owner = bot;
+            _ownerNetworkObject = bot != null ? bot.GetComponent<NetworkObject>() : null;
+            _ownerId = botId;
+            _ownerType = BulletOwnerType.Bot;
+        }
+
         public void SetDamage(float newDamage)
         {
             damage = Mathf.RoundToInt(newDamage);
@@ -80,8 +92,11 @@ namespace Weapon.Projectile
             var netObj = other.GetComponent<NetworkObject>();
             if (netObj == null) netObj = other.GetComponentInParent<NetworkObject>();
 
-            // Не бьём владельца по OwnerId
-            if (netObj != null && netObj.OwnerId == _ownerId) return;
+            // Не бьём владельца по OwnerId (только для игроков с валидным ID)
+            if (_ownerType == BulletOwnerType.Player && _ownerId >= 0)
+            {
+                if (netObj != null && netObj.OwnerId == _ownerId) return;
+            }
 
             // Специфичные проверки для турели
             if (_ownerType == BulletOwnerType.Turret)
@@ -91,6 +106,15 @@ namespace Weapon.Projectile
                 if (other.GetComponentInParent<AI.Neutral.Neutral>() != null) return;
 
                 // Турель не бьёт другие турели того же владельца
+                var turret = other.GetComponent<Gameplay.TurretPlant.TurretPlant>();
+                if (turret == null) turret = other.GetComponentInParent<Gameplay.TurretPlant.TurretPlant>();
+                if (turret != null && turret.PlantedOwnerId == _ownerId) return;
+            }
+
+            // Специфичные проверки для бота - бот не бьёт себя и свои турели
+            if (_ownerType == BulletOwnerType.Bot)
+            {
+                // Не бьём свои турели
                 var turret = other.GetComponent<Gameplay.TurretPlant.TurretPlant>();
                 if (turret == null) turret = other.GetComponentInParent<Gameplay.TurretPlant.TurretPlant>();
                 if (turret != null && turret.PlantedOwnerId == _ownerId) return;
