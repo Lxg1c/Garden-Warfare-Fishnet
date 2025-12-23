@@ -328,8 +328,13 @@ namespace Gameplay.TurretPlant
                 Debug.Log($"[TurretPlant] FindPlantedTarget: found {hits.Length} colliders in range {detectionRange}, owner={_plantedOwnerId.Value}, layers={combinedLayers.value}");
             }
 
-            Transform closest = null;
-            float closestDist = float.MaxValue;
+            // ПРИОРИТЕТ 1: Ищем волновых врагов (они всегда приоритетнее игроков)
+            Transform closestWaveEnemy = null;
+            float closestWaveEnemyDist = float.MaxValue;
+
+            // ПРИОРИТЕТ 2: Ищем игроков
+            Transform closestPlayer = null;
+            float closestPlayerDist = float.MaxValue;
 
             foreach (var c in hits)
             {
@@ -347,10 +352,10 @@ namespace Gameplay.TurretPlant
                         if (h != null && h.GetHealth() > 0 && !h.IsDead && CanSee(c.transform))
                         {
                             float dist = Vector3.Distance(transform.position, c.transform.position);
-                            if (dist < closestDist)
+                            if (dist < closestWaveEnemyDist)
                             {
-                                closest = c.transform;
-                                closestDist = dist;
+                                closestWaveEnemy = c.transform;
+                                closestWaveEnemyDist = dist;
                             }
                         }
                     }
@@ -377,15 +382,21 @@ namespace Gameplay.TurretPlant
                 if (!CanSee(c.transform)) continue;
 
                 float dist2 = Vector3.Distance(transform.position, c.transform.position);
-                if (dist2 < closestDist)
+                if (dist2 < closestPlayerDist)
                 {
-                    closest = c.transform;
-                    closestDist = dist2;
+                    closestPlayer = c.transform;
+                    closestPlayerDist = dist2;
                     Debug.Log($"[TurretPlant] Found player target: {c.name}, dist={dist2:F1}");
                 }
             }
 
-            return closest;
+            // Возвращаем волнового врага если есть, иначе игрока
+            if (closestWaveEnemy != null)
+            {
+                return closestWaveEnemy;
+            }
+
+            return closestPlayer;
         }
 
         private bool IsValidTarget(Transform target)

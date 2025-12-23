@@ -45,8 +45,8 @@ namespace AI.Bot
         [SerializeField] private float leashRange = 25f;       // Расстояние от дома для отвязки
 
         [Header("Raiding")]
-        [SerializeField] private float raidChance = 0.3f;      // Шанс начать рейд (30%)
-        [SerializeField] private float raidCheckInterval = 20f; // Проверка каждые 20 сек
+        [SerializeField] private float raidChance = 0.6f;      // Шанс начать рейд (60%)
+        [SerializeField] private float raidCheckInterval = 10f; // Проверка каждые 10 сек
         [SerializeField] private float attackCooldown = 0.5f;
         [SerializeField] private int attackDamage = 10;
         [SerializeField] private GameObject bulletPrefab;
@@ -265,7 +265,34 @@ namespace AI.Bot
 
             // === МЕЖДУ ВОЛНАМИ ===
 
-            // 5. Проверяем игроков в радиусе агро
+            // 5. Продолжаем рейд если начат (высокий приоритет - не отвлекаемся)
+            if (_state.Value == BotState.Raiding && _raidTarget != null)
+            {
+                // Проверяем что цель рейда ещё жива
+                var raidTargetHealth = _raidTarget.GetComponent<Health>();
+                if (raidTargetHealth != null && !raidTargetHealth.IsDead)
+                {
+                    return;
+                }
+                // Цель рейда мертва - сбрасываем
+                _raidTarget = null;
+                _raidTurretTarget = null;
+            }
+
+            // 6. Проверяем шанс начать рейд (приоритет выше чем фарм)
+            _raidCheckTimer -= thinkInterval;
+            if (_raidCheckTimer <= 0f)
+            {
+                _raidCheckTimer = raidCheckInterval;
+                if (Random.value < raidChance && TryStartRaid())
+                {
+                    Debug.Log($"[BotPlayer] Bot {_botId.Value} starting raid on {_raidTarget?.name}");
+                    _state.Value = BotState.Raiding;
+                    return;
+                }
+            }
+
+            // 7. Проверяем игроков в радиусе агро (только если не в рейде)
             Transform player = FindNearestPlayer();
             if (player != null)
             {
@@ -274,31 +301,13 @@ namespace AI.Bot
                 return;
             }
 
-            // 6. Если есть враги в зоне видимости (нейтралы) - сражаемся
+            // 8. Если есть враги в зоне видимости (нейтралы) - сражаемся
             Transform enemy = FindNearestEnemy();
             if (enemy != null)
             {
                 SetNewAggroTarget(enemy);
                 _state.Value = BotState.Fighting;
                 return;
-            }
-
-            // 7. Продолжаем рейд если начат
-            if (_state.Value == BotState.Raiding && _raidTarget != null)
-            {
-                return;
-            }
-
-            // 8. Проверяем шанс начать рейд (только между волнами)
-            _raidCheckTimer -= thinkInterval;
-            if (_raidCheckTimer <= 0f)
-            {
-                _raidCheckTimer = raidCheckInterval;
-                if (Random.value < raidChance && TryStartRaid())
-                {
-                    _state.Value = BotState.Raiding;
-                    return;
-                }
             }
 
             // 9. Если можем посадить ещё турелей - ищем растения (фарм)
@@ -1031,14 +1040,29 @@ namespace AI.Bot
             LifeFruit targetFruit = null;
             float nearestDist = float.MaxValue;
 
+            Debug.Log($"[BotPlayer] TryStartRaid: found {lifeFruits.Length} LifeFruits, myLifeFruit={((_myLifeFruit != null) ? _myLifeFruit.name : "null")}");
+
             foreach (var fruit in lifeFruits)
             {
-                if (fruit == null || fruit == _myLifeFruit) continue;
+                if (fruit == null) continue;
+
+                // Пропускаем свой LifeFruit
+                if (fruit == _myLifeFruit)
+                {
+                    Debug.Log($"[BotPlayer] Skipping own LifeFruit: {fruit.name}");
+                    continue;
+                }
 
                 var health = fruit.GetComponent<Health>();
-                if (health != null && health.IsDead) continue;
+                if (health != null && health.IsDead)
+                {
+                    Debug.Log($"[BotPlayer] Skipping dead LifeFruit: {fruit.name}");
+                    continue;
+                }
 
                 float dist = Vector3.Distance(transform.position, fruit.transform.position);
+                Debug.Log($"[BotPlayer] Found enemy LifeFruit: {fruit.name}, dist={dist:F1}");
+
                 if (dist < nearestDist)
                 {
                     targetFruit = fruit;
@@ -1050,9 +1074,11 @@ namespace AI.Bot
             {
                 _raidTarget = targetFruit;
                 _raidTurretTarget = FindEnemyTurretNear(targetFruit);
+                Debug.Log($"[BotPlayer] Starting raid on {targetFruit.name}, turret={((_raidTurretTarget != null) ? _raidTurretTarget.name : "none")}");
                 return true;
             }
 
+            Debug.Log($"[BotPlayer] TryStartRaid failed - no valid target found");
             return false;
         }
 

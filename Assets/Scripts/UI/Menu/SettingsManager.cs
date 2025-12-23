@@ -65,7 +65,7 @@ namespace UI.Menu
             List<string> options = new List<string>();
 
             foreach (int fps in _fpsOptions)
-                options.Add(fps == -1 ? "��� ������" : $"{fps} FPS");
+                options.Add(fps == -1 ? "Без лимита" : $"{fps} FPS");
 
             fpsDropdown.AddOptions(options);
             fpsDropdown.onValueChanged.AddListener(SetFPS);
@@ -91,9 +91,9 @@ namespace UI.Menu
             screenModeDropdown.ClearOptions();
             screenModeDropdown.AddOptions(new List<string>
             {
-                "�������������",
-                "������������� � ����",
-                "�������"
+                "Полноэкранный",
+                "Полноэкранный в окне",
+                "Оконный"
             });
 
             screenModeDropdown.onValueChanged.AddListener(SetScreenMode);
