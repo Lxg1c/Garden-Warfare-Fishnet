@@ -130,7 +130,6 @@ namespace Weapon.Projectile
             if (hp != null)
             {
                 hp.TakeDamage(damage, _owner, _ownerNetworkObject);
-                Debug.Log($"[Bullet] Hit {hp.name} for {damage} damage (owner type: {_ownerType})");
             }
             else
             {

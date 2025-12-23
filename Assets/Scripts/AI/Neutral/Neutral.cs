@@ -41,7 +41,6 @@ namespace AI.Neutral
         {
             _campManager = camp;
             _campController = GetComponentInParent<CampController>();
-            Debug.Log($"[Neutral {name}] Camp manager set");
         }
 
         private void Awake()
@@ -61,8 +60,6 @@ namespace AI.Neutral
                 _health.OnDamaged += OnDamaged;
                 _health.OnDeath += OnDeath;
             }
-            
-            Debug.Log($"[Neutral {name}] Started on network");
         }
 
         public override void OnStopNetwork()
@@ -275,18 +272,13 @@ namespace AI.Neutral
         {
             _target = t;
             SetState(AiState.Chasing);
-            Debug.Log($"[Neutral {name}] Aggro on {t.name}");
         }
 
         public void SetAggro(Transform t)
         {
             // НЕ агримся если возвращаемся домой
-            if (_state == AiState.Returning)
-            {
-                Debug.Log($"[Neutral {name}] Ignoring aggro - returning home");
-                return;
-            }
-            
+            if (_state == AiState.Returning) return;
+
             Aggro(t);
         }
 
@@ -308,28 +300,20 @@ namespace AI.Neutral
 
         private void OnDamaged(Transform attacker)
         {
-            Debug.Log($"[Neutral {name}] OnDamaged by {(attacker != null ? attacker.name : "null")}");
-            
             if (attacker == null) return;
 
             // НЕ агримся если возвращаемся домой
-            if (_state == AiState.Returning)
-            {
-                Debug.Log($"[Neutral {name}] Ignoring damage - returning home");
-                return;
-            }
+            if (_state == AiState.Returning) return;
 
             _target = attacker;
             SetState(AiState.Chasing);
-            
+
             // Вызываем событие для распространения агро через CampController
             OnNeutralGetDamage?.Invoke(attacker);
         }
 
         private void OnDeath()
         {
-            Debug.Log($"[Neutral {name}] OnDeath called (IsServer: {IsServerStarted})");
-            
             _agent.isStopped = true;
             enabled = false;
 
@@ -340,11 +324,7 @@ namespace AI.Neutral
                 {
                     _campManager.RemoveUnit(this);
                 }
-                else
-                {
-                    Debug.LogWarning($"[Neutral {name}] No camp manager on death!");
-                }
-            
+
                 // Деспавним через NetworkObject
                 StartCoroutine(DelayedDespawn());
             }

@@ -3516,10 +3516,12 @@ MonoBehaviour:
   plantTime: 1
   minPlantDistance: 3
   maxPlantDistance: 6
-  detectionRange: 10
-  attackRange: 10
-  playerAggroRange: 15
-  raidChance: 0.3
+  detectionRange: 8
+  attackRange: 7
+  playerAggroRange: 8
+  aggroTimeout: 4
+  leashRange: 10
+  raidChance: 0.4
   raidCheckInterval: 20
   attackCooldown: 0.5
   attackDamage: 10

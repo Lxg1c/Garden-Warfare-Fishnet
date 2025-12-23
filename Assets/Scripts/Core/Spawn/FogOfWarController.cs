@@ -40,8 +40,6 @@ namespace Core.Spawn
             _fogInstance._FogRevealers.Add(
                 new csFogWar.FogRevealer(player, radius, true)
             );
-
-            Debug.Log("Local Fog Of War created for player");
         }
 
         /// <summary>

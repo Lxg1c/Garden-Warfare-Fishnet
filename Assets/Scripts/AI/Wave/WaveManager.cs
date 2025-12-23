@@ -99,8 +99,6 @@ namespace AI.Wave
 
                 // Подписываемся на таймер
                 GameTimer.OnTimeChanged += OnGameTimeChanged;
-
-                Debug.Log($"[WaveManager] Started. First wave at {firstWaveTime}s");
             }
         }
 
@@ -146,7 +144,7 @@ namespace AI.Wave
         {
             _playersWithLifeFruit.Clear();
 
-            // Находим всех игроков с ЖИВЫМ LifeFruit
+            // Находим всех игроков/ботов с ЖИВЫМ LifeFruit
             var lifeFruits = FindObjectsByType<LifeFruit>(FindObjectsSortMode.None);
             foreach (var fruit in lifeFruits)
             {
@@ -155,9 +153,10 @@ namespace AI.Wave
                     // Только ЖИВЫЕ посаженные LifeFruit считаются (не мёртвые и не те что несут)
                     if (fruit.IsAlive)
                     {
-                        if (!_playersWithLifeFruit.Contains(fruit.OwnerId))
+                        int ownerId = fruit.LogicalOwnerId;
+                        if (!_playersWithLifeFruit.Contains(ownerId))
                         {
-                            _playersWithLifeFruit.Add(fruit.OwnerId);
+                            _playersWithLifeFruit.Add(ownerId);
                         }
                     }
                 }
@@ -185,12 +184,10 @@ namespace AI.Wave
             if (_alivePlayers.Count == 1 && _currentWave.Value > 0)
             {
                 int winnerId = _alivePlayers[0];
-                Debug.Log($"[WaveManager] Player {winnerId} WINS! Last standing!");
                 OnPlayerWon(winnerId);
             }
             else if (_alivePlayers.Count == 0 && _currentWave.Value > 0)
             {
-                Debug.Log("[WaveManager] All players eliminated - Draw!");
                 OnGameDraw();
             }
         }
@@ -204,7 +201,6 @@ namespace AI.Wave
             if (_eliminatedPlayers.Contains(playerId)) return;
 
             _eliminatedPlayers.Add(playerId);
-            Debug.Log($"[WaveManager] Player {playerId} ELIMINATED (died without LifeFruit)");
 
             // Очищаем врагов этого игрока
             CleanupEnemiesForPlayer(playerId);
@@ -216,7 +212,7 @@ namespace AI.Wave
         [ObserversRpc]
         private void NotifyPlayerEliminatedObserversRpc(int playerId)
         {
-            Debug.Log($"[WaveManager] Player {playerId} has been eliminated!");
+            // Можно показать UI уведомление
         }
 
         [Server]
@@ -226,8 +222,6 @@ namespace AI.Wave
             _waveActive.Value = true;
 
             int enemyCount = baseEnemiesPerWave + (enemiesPerWaveIncrease * (_currentWave.Value - 1));
-
-            Debug.Log($"[WaveManager] === WAVE {_currentWave.Value} STARTED === Spawning {enemyCount} enemies per player");
 
             // Уведомляем всех клиентов о начале волны
             NotifyWaveStartObserversRpc(_currentWave.Value, enemyCount);
@@ -246,11 +240,7 @@ namespace AI.Wave
         private void SpawnWaveEnemiesForPlayer(int playerId, int count)
         {
             LifeFruit lifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
-            if (lifeFruit == null)
-            {
-                Debug.LogWarning($"[WaveManager] Cannot spawn enemies - no LifeFruit for player {playerId}");
-                return;
-            }
+            if (lifeFruit == null) return;
 
             if (!_playerWaveEnemies.ContainsKey(playerId))
             {
@@ -264,11 +254,7 @@ namespace AI.Wave
         {
             for (int i = 0; i < count; i++)
             {
-                if (lifeFruitTransform == null)
-                {
-                    Debug.Log($"[WaveManager] LifeFruit destroyed during spawn - aborting for player {playerId}");
-                    yield break;
-                }
+                if (lifeFruitTransform == null) yield break;
 
                 SpawnSingleEnemy(playerId, lifeFruitTransform);
                 yield return new WaitForSeconds(spawnDelay);
@@ -278,20 +264,12 @@ namespace AI.Wave
         [Server]
         private void SpawnSingleEnemy(int playerId, Transform lifeFruitTransform)
         {
-            if (waveEnemyPrefab == null)
-            {
-                Debug.LogError("[WaveManager] Wave enemy prefab not assigned!");
-                return;
-            }
+            if (waveEnemyPrefab == null) return;
 
             // Рассчитываем позицию спавна (случайная точка на окружности вокруг LifeFruit)
             Vector3? spawnPos = GetRandomSpawnPosition(lifeFruitTransform.position);
 
-            if (!spawnPos.HasValue)
-            {
-                Debug.LogWarning($"[WaveManager] Could not find valid NavMesh position for enemy spawn near player {playerId}");
-                return;
-            }
+            if (!spawnPos.HasValue) return;
 
             // Спавним врага на валидной позиции NavMesh
             NetworkObject enemyNetObj = Instantiate(waveEnemyPrefab, spawnPos.Value, Quaternion.identity);
@@ -311,17 +289,8 @@ namespace AI.Wave
             yield return null;
             yield return null;
 
-            if (enemy == null)
-            {
-                Debug.LogError($"[WaveManager] Enemy is null after delay!");
-                yield break;
-            }
-
-            if (lifeFruitTransform == null)
-            {
-                Debug.LogWarning($"[WaveManager] LifeFruit destroyed before enemy could be initialized");
-                yield break;
-            }
+            if (enemy == null) yield break;
+            if (lifeFruitTransform == null) yield break;
 
             // Инициализируем врага
             enemy.Initialize(playerId, lifeFruitTransform, this);
@@ -338,8 +307,6 @@ namespace AI.Wave
                 _playerWaveEnemies[playerId] = new List<WaveEnemy>();
             }
             _playerWaveEnemies[playerId].Add(enemy);
-
-            Debug.Log($"[WaveManager] Enemy initialized for player {playerId}, targeting LifeFruit at {lifeFruitTransform.position}");
         }
 
         private Vector3? GetRandomSpawnPosition(Vector3 center)
@@ -407,9 +374,6 @@ namespace AI.Wave
             {
                 _waveActive.Value = false;
                 _nextWaveTime = GameTimer.Instance.CurrentTime + waveInterval;
-
-                Debug.Log($"[WaveManager] Wave {_currentWave.Value} COMPLETED! Next wave at {_nextWaveTime}s");
-
                 // Уведомляем клиентов
                 NotifyWaveEndObserversRpc(_currentWave.Value);
             }
@@ -445,26 +409,19 @@ namespace AI.Wave
         [ObserversRpc]
         private void NotifyWaveStartObserversRpc(int waveNumber, int enemyCount)
         {
-            Debug.Log($"[WaveManager] WAVE {waveNumber} - {enemyCount} enemies incoming!");
+            // Можно показать UI уведомление о начале волны
         }
 
         [ObserversRpc]
         private void NotifyWaveEndObserversRpc(int waveNumber)
         {
-            Debug.Log($"[WaveManager] Wave {waveNumber} cleared!");
+            // Можно показать UI уведомление о завершении волны
         }
 
         [ObserversRpc]
         private void NotifyGameOverObserversRpc(int winnerId, bool isDraw)
         {
-            if (isDraw)
-            {
-                Debug.Log("[WaveManager] GAME OVER - DRAW!");
-            }
-            else
-            {
-                Debug.Log($"[WaveManager] GAME OVER - Player {winnerId} WINS!");
-            }
+            // Можно показать UI Game Over
         }
 
         // ==================
@@ -484,7 +441,6 @@ namespace AI.Wave
                     }
                 }
                 _playerWaveEnemies.Remove(playerId);
-                Debug.Log($"[WaveManager] Cleaned up enemies targeting player {playerId}");
             }
         }
 

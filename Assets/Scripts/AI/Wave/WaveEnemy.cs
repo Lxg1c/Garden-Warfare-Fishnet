@@ -163,7 +163,6 @@ namespace AI.Wave
                 {
                     _state = WaveEnemyState.ChasingCarrier;
                     _currentTarget = carrier;
-                    Debug.Log($"[WaveEnemy] LifeFruit is being carried - chasing carrier {carrier.name}");
                 }
             }
 
@@ -174,7 +173,6 @@ namespace AI.Wave
                 {
                     _state = WaveEnemyState.AttackingLifeFruit;
                     _currentTarget = _targetLifeFruit;
-                    Debug.Log($"[WaveEnemy] LifeFruit dropped - returning to attack LifeFruit");
                 }
                 else
                 {
@@ -217,7 +215,6 @@ namespace AI.Wave
             {
                 _state = WaveEnemyState.Idle;
                 _currentTarget = null;
-                Debug.Log($"[WaveEnemy] LifeFruit destroyed or dead - switching to Idle state");
             }
         }
 
@@ -443,12 +440,17 @@ namespace AI.Wave
 
             float dist = Vector3.Distance(transform.position, target.position);
 
+            // Останавливаемся на дистанции атаки (с небольшим запасом)
+            float stopDistance = attackRange * 0.8f;
+
             if (dist <= attackRange)
             {
-                // Атакуем
+                // Атакуем - полностью останавливаемся
                 if (_agent.isOnNavMesh)
                 {
                     _agent.isStopped = true;
+                    _agent.ResetPath();
+                    _agent.velocity = Vector3.zero;
                 }
                 RotateTowards(target.position);
 
@@ -461,10 +463,11 @@ namespace AI.Wave
             }
             else
             {
-                // Идём к цели
+                // Идём к цели, но не ближе чем stopDistance
                 if (_agent.isOnNavMesh)
                 {
                     _agent.isStopped = false;
+                    _agent.stoppingDistance = stopDistance;
                     _agent.SetDestination(target.position);
                 }
             }
@@ -512,22 +515,16 @@ namespace AI.Wave
                 if (_agent.isOnNavMesh)
                 {
                     _agent.speed = moveSpeed;
+                    _agent.stoppingDistance = attackRange * 0.8f; // Останавливаемся на дистанции атаки
                     _agent.isStopped = false;
 
                     // Сразу задаём цель движения
                     if (lifeFruitTransform != null)
                     {
                         _agent.SetDestination(lifeFruitTransform.position);
-                        Debug.Log($"[WaveEnemy] Set destination to LifeFruit at {lifeFruitTransform.position}");
                     }
                 }
-                else
-                {
-                    Debug.LogWarning($"[WaveEnemy] Agent not on NavMesh! Position: {transform.position}");
-                }
             }
-
-            Debug.Log($"[WaveEnemy] Initialized - targeting player {targetPlayerId}'s LifeFruit at {lifeFruitTransform?.position} (OnNavMesh: {_agent?.isOnNavMesh}, State: {_state})");
         }
 
         /// <summary>

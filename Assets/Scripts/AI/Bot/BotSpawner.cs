@@ -59,8 +59,6 @@ namespace AI.Bot
                 SpawnBot(i);
                 yield return new WaitForSeconds(0.5f);
             }
-
-            Debug.Log($"[BotSpawner] Spawned {botsToSpawn} bots");
         }
 
         [Server]
@@ -109,15 +107,15 @@ namespace AI.Bot
                     LifeFruit lifeFruit = fruitNetObj.GetComponent<LifeFruit>();
                     if (lifeFruit != null)
                     {
+                        // Устанавливаем логического владельца для бота
+                        lifeFruit.SetLogicalOwner(botId);
                         bot.SetLifeFruit(lifeFruit);
                     }
 
                     _botLifeFruits[botId] = fruitNetObj;
-                    Debug.Log($"[BotSpawner] LifeFruit spawned for bot {botId} at {fruitPos}");
                 }
 
                 _spawnedBots.Add(bot);
-                Debug.Log($"[BotSpawner] Bot {botId} spawned at {spawnPos}");
             }
         }
 
@@ -127,17 +125,13 @@ namespace AI.Bot
         [Server]
         private void OnBotDeath(int botId, BotPlayer bot)
         {
-            Debug.Log($"[BotSpawner] Bot {botId} died, checking LifeFruit...");
-
             // Проверяем жив ли LifeFruit бота
             if (IsBotLifeFruitAlive(botId))
             {
-                Debug.Log($"[BotSpawner] Bot {botId} LifeFruit is alive, scheduling respawn...");
                 StartCoroutine(RespawnBotCoroutine(botId, bot));
             }
             else
             {
-                Debug.Log($"[BotSpawner] Bot {botId} LifeFruit is dead, no respawn!");
                 _spawnedBots.Remove(bot);
             }
         }
@@ -170,7 +164,6 @@ namespace AI.Bot
             // Ещё раз проверяем LifeFruit (мог умереть за время ожидания)
             if (!IsBotLifeFruitAlive(botId))
             {
-                Debug.Log($"[BotSpawner] Bot {botId} LifeFruit died during respawn delay, cancelling respawn");
                 _spawnedBots.Remove(bot);
                 yield break;
             }
@@ -184,7 +177,6 @@ namespace AI.Bot
             if (health != null)
             {
                 health.Revive(respawnPos, respawnRot);
-                Debug.Log($"[BotSpawner] Bot {botId} respawned at {respawnPos}");
             }
         }
 
@@ -220,8 +212,6 @@ namespace AI.Bot
                 }
             }
             _botLifeFruits.Clear();
-
-            Debug.Log("[BotSpawner] All bots despawned");
         }
 
         /// <summary>

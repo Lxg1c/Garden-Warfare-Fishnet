@@ -33,8 +33,6 @@ namespace Core.Spawn
 
             _spawnedPlayers.Clear();
 
-            Debug.Log("[GameSpawnManager] Server started - spawning all connected players");
-
             // Спавним всех уже подключенных игроков
             foreach (NetworkConnection conn in ServerManager.Clients.Values)
             {
@@ -66,20 +64,12 @@ namespace Core.Spawn
         [Server]
         public void SpawnPlayerForConnection(NetworkConnection conn)
         {
-            if (conn == null)
-            {
-                Debug.LogError("[GameSpawnManager] Cannot spawn - connection is null");
-                return;
-            }
+            if (conn == null) return;
 
             int playerId = conn.ClientId;
 
             // Проверяем не заспавнен ли уже
-            if (_spawnedPlayers.Contains(playerId))
-            {
-                Debug.LogWarning($"[GameSpawnManager] Player {playerId} already spawned!");
-                return;
-            }
+            if (_spawnedPlayers.Contains(playerId)) return;
 
             SpawnPlayerInternal(conn);
         }
@@ -89,13 +79,7 @@ namespace Core.Spawn
         {
             int playerId = conn.ClientId;
 
-            Debug.Log($"[GameSpawnManager] Spawning player {playerId}...");
-
-            if (playerPrefab == null)
-            {
-                Debug.LogError("[GameSpawnManager] Player prefab not assigned!");
-                return;
-            }
+            if (playerPrefab == null) return;
 
             Transform pSpawn = GetPlayerSpawnPoint(playerId);
             Transform fSpawn = GetFruitSpawnPoint(playerId);
@@ -103,7 +87,6 @@ namespace Core.Spawn
             // --- Спавн игрока ---
             NetworkObject playerObj = Instantiate(playerPrefab, pSpawn.position, pSpawn.rotation);
             ServerManager.Spawn(playerObj, conn);
-            Debug.Log($"[GameSpawnManager] Player {playerId} spawned at {pSpawn.position}");
 
             // --- Настройка PlayerInfo ---
             PlayerInfo info = playerObj.GetComponent<PlayerInfo>();
@@ -118,7 +101,6 @@ namespace Core.Spawn
             {
                 NetworkObject fruitObj = Instantiate(lifeFruitPrefab, fSpawn.position, fSpawn.rotation);
                 ServerManager.Spawn(fruitObj, conn);
-                Debug.Log($"[GameSpawnManager] LifeFruit for player {playerId} spawned at {fSpawn.position}");
             }
 
             // Отмечаем что игрок заспавнен
@@ -146,8 +128,6 @@ namespace Core.Spawn
                     ServerManager.Despawn(nob);
                 }
             }
-
-            Debug.Log($"[GameSpawnManager] Player {playerId} despawned");
         }
 
         /// <summary>

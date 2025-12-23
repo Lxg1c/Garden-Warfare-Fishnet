@@ -147,10 +147,6 @@ namespace Core.Components
             var weaponController = GetComponent<Weapon.WeaponController>();
             if (weaponController != null) scriptsToDisable.Add(weaponController);
             _movementScripts = scriptsToDisable.ToArray();
-
-            Debug.Log($"[Health] {name} CacheComponents: CharCtrl={_characterController != null}, " +
-                      $"Renderers={_renderers?.Length ?? 0}, Colliders={_colliders?.Length ?? 0}, " +
-                      $"Scripts={_movementScripts?.Length ?? 0}");
         }
 
         public override void OnStopNetwork()
@@ -266,8 +262,6 @@ namespace Core.Components
         [ObserversRpc]
         private void ObserversRpc_OnDeath(bool shouldDisable)
         {
-            Debug.Log($"[Health] {name} ObserversRpc_OnDeath called (shouldDisable={shouldDisable})");
-
             IsDead = true;
 
             // Вызываем событие смерти
@@ -284,19 +278,12 @@ namespace Core.Components
             if (shouldDisable)
             {
                 gameObject.SetActive(false);
-                Debug.Log($"[Health] {name} died - GameObject disabled");
-            }
-            else
-            {
-                Debug.Log($"[Health] {name} died - GameObject kept active");
             }
         }
 
         [ObserversRpc]
         private void ObserversRpc_OnRevive(Vector3 position, Quaternion rotation)
         {
-            Debug.Log($"[Health] {name} ObserversRpc_OnRevive called");
-
             IsDead = false;
 
             // ВАЖНО: Сначала включаем GameObject (он был выключен в OnDeath)
@@ -322,8 +309,6 @@ namespace Core.Components
 
             // Вызываем событие возрождения
             OnRevive?.Invoke();
-
-            Debug.Log($"[Health] {name} revived at {position}");
         }
 
         /// <summary>

@@ -30,7 +30,6 @@ namespace Gameplay.TurretPlant
         {
             base.OnStartServer();
             GameTimer.OnTimeChanged += HandleTime;
-            Debug.Log($"[PlantSpawner {spawnerName}] Initialized, waiting for time {initialSpawnTime}");
         }
 
         public override void OnStopServer()
@@ -46,7 +45,6 @@ namespace Gameplay.TurretPlant
             // Первичный спавн
             if (!_spawnedInitial && time >= initialSpawnTime)
             {
-                Debug.Log($"[PlantSpawner {spawnerName}] Initial spawn at time {time}");
                 SpawnPlant();
                 _spawnedInitial = true;
             }
@@ -54,7 +52,6 @@ namespace Gameplay.TurretPlant
             // Респавн после того как растение забрали
             if (_spawnedInitial && !_hasPlant && time >= _nextRespawnTime)
             {
-                Debug.Log($"[PlantSpawner {spawnerName}] Respawn at time {time}");
                 SpawnPlant();
             }
         }
@@ -80,8 +77,6 @@ namespace Gameplay.TurretPlant
             {
                 _currentPlant.SetSpawner(this);
                 _hasPlant = true;
-
-                Debug.Log($"[PlantSpawner {spawnerName}] Plant spawned successfully");
             }
             else
             {
@@ -101,8 +96,6 @@ namespace Gameplay.TurretPlant
         [Server]
         public void OnPlantPickedUp()
         {
-            Debug.Log($"[PlantSpawner {spawnerName}] Plant picked up, scheduling respawn");
-
             _currentPlant = null;
             _hasPlant = false;
 
@@ -110,7 +103,6 @@ namespace Gameplay.TurretPlant
             if (GameTimer.Instance != null)
             {
                 _nextRespawnTime = GameTimer.Instance.CurrentTime + respawnDelay;
-                Debug.Log($"[PlantSpawner {spawnerName}] Next respawn at {_nextRespawnTime} (in {respawnDelay}s)");
             }
 
             // Показываем визуал точки спавна (опционально - показать что тут будет растение)
@@ -126,8 +118,6 @@ namespace Gameplay.TurretPlant
         [Server]
         public void OnPlantDestroyed()
         {
-            Debug.Log($"[PlantSpawner {spawnerName}] Plant destroyed, scheduling respawn");
-
             _currentPlant = null;
             _hasPlant = false;
 

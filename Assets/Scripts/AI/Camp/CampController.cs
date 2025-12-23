@@ -33,8 +33,6 @@ namespace AI.Camp
                 neutral.OnNeutralGetDamage -= OnNeutralDamaged;
                 neutral.OnNeutralGetDamage += OnNeutralDamaged;
             }
-            
-            Debug.Log($"[CampController] Initialized with {_units.Count} units");
         }
 
         private void OnDestroy()
@@ -56,8 +54,6 @@ namespace AI.Camp
             if (!IsServerInitialized) return;
             if (attacker == null) return;
 
-            Debug.Log($"[CampController] Neutral damaged by {attacker.name}, propagating aggro...");
-
             // Агрим весь лагерь на атакующего
             PropagateAggroToAll(attacker);
         }
@@ -66,18 +62,13 @@ namespace AI.Camp
         [Server]
         private void PropagateAggroToAll(Transform attacker)
         {
-            int aggroCount = 0;
-            
             foreach (var neutral in _units)
             {
                 if (neutral != null && neutral.gameObject.activeSelf && neutral.enabled)
                 {
                     neutral.SetAggro(attacker);
-                    aggroCount++;
                 }
             }
-            
-            Debug.Log($"[CampController] Propagated aggro to {aggroCount}/{_units.Count} units on {attacker.name}");
         }
 
         // Вызывается из Camp когда юнит умирает
@@ -86,7 +77,6 @@ namespace AI.Camp
             if (_units.Remove(unit))
             {
                 unit.OnNeutralGetDamage -= OnNeutralDamaged;
-                Debug.Log($"[CampController] Unit removed from controller. Remaining: {_units.Count}");
             }
         }
 

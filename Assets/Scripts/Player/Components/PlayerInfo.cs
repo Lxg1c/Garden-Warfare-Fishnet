@@ -38,7 +38,6 @@ namespace Player.Components
 
         private void OnActorNumberChanged(int oldVal, int newVal, bool asServer)
         {
-            Debug.Log($"[PlayerInfo] ID изменен: {oldVal} -> {newVal}");
             gameObject.name = $"Player_{newVal} {(IsOwner ? "(Me)" : "")}";
         }
 
@@ -51,10 +50,6 @@ namespace Player.Components
             if (IsServerInitialized)
             {
                 _actorNumber.Value = id;
-            }
-            else
-            {
-                Debug.LogWarning("[PlayerInfo] Попытка изменить ActorNumber с клиента или до инициализации! Игнорируется.");
             }
         }
 
@@ -73,7 +68,6 @@ namespace Player.Components
                 _syncSpawnPosition.Value = _pendingSpawnPosition;
                 _syncSpawnRotation.Value = _pendingSpawnRotation;
                 _hasPendingSpawn = false;
-                Debug.Log($"[PlayerInfo] Applied pending SpawnPosition: {_syncSpawnPosition.Value}");
             }
         }
 
@@ -93,7 +87,6 @@ namespace Player.Components
             {
                 _syncSpawnPosition.Value = pos;
                 _syncSpawnRotation.Value = rot;
-                Debug.Log($"[PlayerInfo] SpawnPoint set to {pos}");
             }
             else
             {
@@ -101,7 +94,6 @@ namespace Player.Components
                 _pendingSpawnPosition = pos;
                 _pendingSpawnRotation = rot;
                 _hasPendingSpawn = true;
-                Debug.Log($"[PlayerInfo] SpawnPoint pending: {pos}");
             }
         }
 
@@ -114,14 +106,12 @@ namespace Player.Components
             {
                 _syncSpawnPosition.Value = position;
                 _syncSpawnRotation.Value = rotation;
-                Debug.Log($"[PlayerInfo] SpawnPosition set to {position}");
             }
             else
             {
                 _pendingSpawnPosition = position;
                 _pendingSpawnRotation = rotation;
                 _hasPendingSpawn = true;
-                Debug.Log($"[PlayerInfo] SpawnPosition pending: {position}");
             }
         }
     }

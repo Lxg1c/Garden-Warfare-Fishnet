@@ -75,17 +75,34 @@ namespace UI.HUD.WaveUI
                 }
             }
 
-            // Таймер до следующей волны
+            // Таймер до следующей волны (показываем всегда, даже во время волны)
             if (nextWaveTimerText != null)
             {
-                if (!waveActive && wave >= 0)
+                float timeLeft = GetTimeUntilNextWave();
+                if (timeLeft > 0)
                 {
-                    float timeLeft = GetTimeUntilNextWave();
-                    if (timeLeft > 0)
+                    nextWaveTimerText.text = $"Next wave: {Mathf.CeilToInt(timeLeft)}s";
+                    nextWaveTimerText.color = timeLeft <= 10f ? Color.yellow : Color.white;
+                    nextWaveTimerText.gameObject.SetActive(true);
+                }
+                else if (wave == 0)
+                {
+                    // До первой волны показываем время
+                    float firstWaveTime = WaveManager.Instance.NextWaveTime;
+                    var gameTimer = UI.HUD.GameTimer.GameTimer.Instance;
+                    if (gameTimer != null && firstWaveTime > 0)
                     {
-                        nextWaveTimerText.text = $"Next wave: {Mathf.CeilToInt(timeLeft)}s";
-                        nextWaveTimerText.color = timeLeft <= 10f ? Color.yellow : Color.white;
-                        nextWaveTimerText.gameObject.SetActive(true);
+                        float timeToFirst = Mathf.Max(0f, firstWaveTime - gameTimer.CurrentTime);
+                        if (timeToFirst > 0)
+                        {
+                            nextWaveTimerText.text = $"First wave: {Mathf.CeilToInt(timeToFirst)}s";
+                            nextWaveTimerText.color = timeToFirst <= 10f ? Color.yellow : Color.white;
+                            nextWaveTimerText.gameObject.SetActive(true);
+                        }
+                        else
+                        {
+                            nextWaveTimerText.gameObject.SetActive(false);
+                        }
                     }
                     else
                     {

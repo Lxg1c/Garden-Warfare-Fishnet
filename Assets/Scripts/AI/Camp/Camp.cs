@@ -37,11 +37,9 @@ namespace AI.Camp
         private void HandleTime(float time)
         {
             if (!IsServerInitialized) return;
-
-            // Первичный спавн
+            
             if (!_spawnedInitial && time >= initialSpawnTime)
             {
-                Debug.Log($"[Camp {campName}] Initial spawn triggered at time {time}");
                 SpawnCamp();
                 _spawnedInitial = true;
                 _isCampAlive = true;
@@ -50,7 +48,6 @@ namespace AI.Camp
             // Респавн по интервалу, только если кемп мертв
             if (_spawnedInitial && !_isCampAlive && time >= _nextRespawnTime)
             {
-                Debug.Log($"[Camp {campName}] Respawn triggered at time {time}, next was {_nextRespawnTime}");
                 SpawnCamp();
                 _isCampAlive = true;
             }
@@ -96,7 +93,6 @@ namespace AI.Camp
                 }
             }
 
-            Debug.Log($"[Camp {campName}] Spawned camp with {_units.Count} units");
             _isCampAlive = _units.Count > 0;
         }
 
@@ -126,17 +122,11 @@ namespace AI.Camp
         {
             if (_units.Count == 0 && _isCampAlive)
             {
-                Debug.Log($"[Camp {campName}] All units dead. Camp cleared.");
                 _isCampAlive = false;
-                
+
                 if (GameTimer.Instance != null)
                 {
                     _nextRespawnTime = GameTimer.Instance.CurrentTime + respawnInterval;
-                    Debug.Log($"[Camp {campName}] Next respawn at {_nextRespawnTime} (current: {GameTimer.Instance.CurrentTime})");
-                }
-                else
-                {
-                    Debug.LogError($"[Camp {campName}] GameTimer.Instance is null!");
                 }
             }
         }
@@ -146,19 +136,13 @@ namespace AI.Camp
         {
             if (_units.Remove(unit))
             {
-                Debug.Log($"[Camp {campName}] Unit removed. Remaining: {_units.Count}, IsCampAlive: {_isCampAlive}");
-                
                 // Уведомляем контроллер об изменении
                 if (_currentController != null)
                 {
                     _currentController.OnUnitRemoved(unit);
                 }
-                
+
                 CheckIfCampCleared();
-            }
-            else
-            {
-                Debug.LogWarning($"[Camp {campName}] Tried to remove unit that wasn't in list!");
             }
         }
 

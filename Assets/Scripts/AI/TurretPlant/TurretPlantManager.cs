@@ -46,7 +46,6 @@ namespace Gameplay.TurretPlant
             }
 
             _playerTurrets[playerId].Add(turret);
-            Debug.Log($"[TurretPlantManager] Player {playerId} planted turret. Total: {_playerTurrets[playerId].Count}");
         }
 
         [Server]
@@ -55,7 +54,6 @@ namespace Gameplay.TurretPlant
             if (_playerTurrets.ContainsKey(playerId))
             {
                 _playerTurrets[playerId].Remove(turret);
-                Debug.Log($"[TurretPlantManager] Player {playerId} lost turret. Remaining: {_playerTurrets[playerId].Count}");
             }
         }
 
@@ -80,28 +78,13 @@ namespace Gameplay.TurretPlant
 
         public bool CanPlantAt(int playerId, Vector3 position)
         {
-            if (!CanPlantMore(playerId))
-            {
-                Debug.Log($"[TurretPlantManager] Player {playerId} reached turret limit ({maxTurretsPerPlayer})");
-                return false;
-            }
+            if (!CanPlantMore(playerId)) return false;
 
             LifeFruit lifeFruit = FindLifeFruitForPlayer(playerId);
-            if (lifeFruit == null || !lifeFruit.IsAlive)
-            {
-                Debug.Log($"[TurretPlantManager] Player {playerId} has no alive LifeFruit");
-                return false;
-            }
+            if (lifeFruit == null || !lifeFruit.IsAlive) return false;
 
             float dist = Vector3.Distance(position, lifeFruit.transform.position);
-            bool inRange = dist <= plantingRadius;
-
-            if (!inRange)
-            {
-                Debug.Log($"[TurretPlantManager] Position too far from LifeFruit ({dist:F1}m > {plantingRadius}m)");
-            }
-
-            return inRange;
+            return dist <= plantingRadius;
         }
 
         public LifeFruit FindLifeFruitForPlayer(int playerId)
@@ -109,7 +92,7 @@ namespace Gameplay.TurretPlant
             var fruits = FindObjectsByType<LifeFruit>(FindObjectsSortMode.None);
             foreach (var fruit in fruits)
             {
-                if (fruit.OwnerId == playerId)
+                if (fruit.LogicalOwnerId == playerId)
                 {
                     return fruit;
                 }
@@ -143,7 +126,6 @@ namespace Gameplay.TurretPlant
                     }
                 }
                 _playerTurrets.Remove(playerId);
-                Debug.Log($"[TurretPlantManager] Cleaned up all turrets for player {playerId}");
             }
         }
 

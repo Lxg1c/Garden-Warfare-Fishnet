@@ -34,6 +34,7 @@ namespace Gameplay
 
         private readonly SyncVar<LifeFruitState> _state = new(LifeFruitState.Planted);
         private readonly SyncVar<int> _carrierId = new(-1);
+        private readonly SyncVar<int> _logicalOwnerId = new(-1); // Для ботов (не имеют сетевого OwnerId)
 
         // ==================
         // Локальные данные
@@ -58,6 +59,11 @@ namespace Gameplay
         public int CarrierId => _carrierId.Value;
 
         /// <summary>
+        /// Возвращает логического владельца (для ботов - _logicalOwnerId, для игроков - OwnerId)
+        /// </summary>
+        public int LogicalOwnerId => _logicalOwnerId.Value >= 0 ? _logicalOwnerId.Value : OwnerId;
+
+        /// <summary>
         /// Можно подобрать если брошен или чужой посаженный (не свой!)
         /// ВАЖНО: Нельзя красть если у игрока уже есть свой живой LifeFruit
         /// ВАЖНО: Нельзя красть если у владельца есть живые турели
@@ -66,7 +72,7 @@ namespace Gameplay
         public bool CanBePickedUp(int playerId)
         {
             // Свой LifeFruit нельзя подбирать
-            if (OwnerId == playerId) return false;
+            if (LogicalOwnerId == playerId) return false;
 
             // Нельзя подобрать мёртвый LifeFruit
             if (IsDead) return false;
@@ -75,29 +81,15 @@ namespace Gameplay
             if (_state.Value == LifeFruitState.Carried) return false;
 
             // Нельзя красть во время активной волны
-            if (WaveManager.Instance != null && WaveManager.Instance.WaveActive)
-            {
-                Debug.Log($"[LifeFruit] Cannot steal - wave is active");
-                return false;
-            }
+            if (WaveManager.Instance != null && WaveManager.Instance.WaveActive) return false;
 
             // Проверяем есть ли у игрока свой ЖИВОЙ LifeFruit (если есть - нельзя красть)
             var playerLifeFruit = TurretPlantManager.Instance?.FindLifeFruitForPlayer(playerId);
-            if (playerLifeFruit != null && playerLifeFruit.IsAlive)
-            {
-                // У игрока уже есть живой посаженный LifeFruit - красть нельзя
-                Debug.Log($"[LifeFruit] Player {playerId} cannot steal - has alive LifeFruit");
-                return false;
-            }
+            if (playerLifeFruit != null && playerLifeFruit.IsAlive) return false;
 
             // Проверяем есть ли у владельца этого LifeFruit живые турели
-            int ownerTurretCount = TurretPlantManager.Instance?.GetTurretCount(OwnerId) ?? 0;
-            if (ownerTurretCount > 0)
-            {
-                // Сначала нужно уничтожить все турели владельца
-                Debug.Log($"[LifeFruit] Cannot steal - owner {OwnerId} has {ownerTurretCount} turrets");
-                return false;
-            }
+            int ownerTurretCount = TurretPlantManager.Instance?.GetTurretCount(LogicalOwnerId) ?? 0;
+            if (ownerTurretCount > 0) return false;
 
             // Можно подобрать если брошен
             if (_state.Value == LifeFruitState.Dropped) return true;
@@ -186,15 +178,25 @@ namespace Gameplay
             // Инициализируем здоровье для отмены урона
             _healthBeforeDamage = _health.GetHealth();
 
-            Debug.Log($"[Server] LifeFruit spawned for player {OwnerId} at {transform.position}");
+            // Для игроков включаем респавн (для ботов это не нужно - у них свой RespawnManager)
+            if (_logicalOwnerId.Value < 0)
+            {
+                RespawnManager.SetRespawnEnabled(OwnerId, true);
+            }
+        }
 
-            RespawnManager.SetRespawnEnabled(OwnerId, true);
+        /// <summary>
+        /// Устанавливает логического владельца (для ботов)
+        /// </summary>
+        [Server]
+        public void SetLogicalOwner(int ownerId)
+        {
+            _logicalOwnerId.Value = ownerId;
         }
         
         public override void OnStartClient()
         {
             base.OnStartClient();
-            Debug.Log($"[Client] LifeFruit({OwnerId}) created; trying to attach to fog...");
             
             TryAttachToPlayerFog();
             
@@ -267,7 +269,6 @@ namespace Gameplay
             // Отключаем респавн для бывшего владельца
             RespawnManager.SetRespawnEnabled(OwnerId, false);
 
-            Debug.Log($"[Server] LifeFruit({OwnerId}) picked up by player {playerId}");
             return true;
         }
 
@@ -316,8 +317,6 @@ namespace Gameplay
             }
 
             DetachObserversRpc();
-
-            Debug.Log($"[Server] LifeFruit({OwnerId}) dropped at {dropPosition}");
         }
 
         [ObserversRpc]
@@ -359,8 +358,6 @@ namespace Gameplay
             }
 
             DetachObserversRpc();
-
-            Debug.Log($"[Server] LifeFruit planted for new owner {newOwnerId} (was {oldOwnerId}) at {position}");
         }
 
         // ==================
@@ -388,25 +385,24 @@ namespace Gameplay
             {
                 var attackerNo = attacker.GetComponent<NetworkObject>();
 
-                if (attackerNo != null && attackerNo.OwnerId == OwnerId)
+                if (attackerNo != null && attackerNo.OwnerId == LogicalOwnerId)
                 {
                     // Отменяем урон - восстанавливаем здоровье до значения перед уроном
-                    Debug.Log($"[Server] LifeFruit({OwnerId}) ignored self damage ({damageDealt}), restoring to {_healthBeforeDamage}");
                     _health.SetHealth(_healthBeforeDamage);
                     return;
                 }
             }
-
-            Debug.Log($"[Server] LifeFruit({OwnerId}) took {damageDealt} damage from {attacker?.name}, health: {currentHealth}");
         }
 
         private void OnDeath()
         {
             if (!IsServerInitialized) return;
 
-            Debug.Log($"[Server] LifeFruit({OwnerId}) destroyed");
-
-            RespawnManager.SetRespawnEnabled(OwnerId, false);
+            // Для игроков отключаем респавн (для ботов это не нужно)
+            if (_logicalOwnerId.Value < 0)
+            {
+                RespawnManager.SetRespawnEnabled(OwnerId, false);
+            }
 
             NotifyPlayerInitializer();
 
@@ -439,7 +435,7 @@ namespace Gameplay
                 if (client.FirstObject != null)
                 {
                     var initializer = client.FirstObject.GetComponent<PlayerInitializer>();
-                    if (initializer != null && initializer.OwnerId == OwnerId)
+                    if (initializer != null && initializer.OwnerId == LogicalOwnerId)
                     {
                         initializer.OnLifeFruitDestroyed();
                         break;

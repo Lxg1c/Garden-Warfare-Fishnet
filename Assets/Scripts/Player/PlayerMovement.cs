@@ -113,8 +113,6 @@ namespace Player
 
             // Отправляем на сервер запрос на сохранение позиции спавна
             SetSpawnPositionServerRpc(transform.position, transform.rotation);
-
-            Debug.Log($"[PlayerMovement] First move detected - setting spawn position at {transform.position}");
         }
 
         [ServerRpc]
@@ -128,7 +126,6 @@ namespace Player
             if (_playerInfo != null)
             {
                 _playerInfo.SetSpawnPosition(position, rotation);
-                Debug.Log($"[Server] Player {OwnerId} spawn position set to {position}");
             }
         }
 

@@ -38,9 +38,9 @@ namespace AI.Bot
         [SerializeField] private float maxPlantDistance = 6f;  // Максимальное расстояние от LifeFruit
 
         [Header("Combat")]
-        [SerializeField] private float detectionRange = 12f;
-        [SerializeField] private float attackRange = 10f;
-        [SerializeField] private float playerAggroRange = 15f; // Радиус агро на игроков
+        [SerializeField] private float detectionRange = 10f;
+        [SerializeField] private float attackRange = 4f;
+        [SerializeField] private float playerAggroRange = 12f; // Радиус агро на игроков
         [SerializeField] private float aggroTimeout = 8f;      // Время агро перед отвязкой
         [SerializeField] private float leashRange = 25f;       // Расстояние от дома для отвязки
 
@@ -132,13 +132,11 @@ namespace AI.Bot
             base.OnStartServer();
 
             _agent.speed = moveSpeed;
-            _agent.stoppingDistance = 0.5f; // Позволяем подходить близко
+            _agent.stoppingDistance = 0.5f;
             _homePosition = transform.position;
 
             _health.OnDeath += OnBotDeath;
             _health.OnRevive += OnBotRevive;
-
-            Debug.Log($"[BotPlayer] Bot {_botId.Value} started at {_homePosition}");
         }
 
         public override void OnStopServer()
@@ -160,8 +158,6 @@ namespace AI.Bot
         {
             _botId.Value = botId;
             _homePosition = homePosition;
-
-            Debug.Log($"[BotPlayer] Bot {botId} initialized at {homePosition}");
         }
 
         /// <summary>
@@ -171,7 +167,6 @@ namespace AI.Bot
         public void SetLifeFruit(LifeFruit lifeFruit)
         {
             _myLifeFruit = lifeFruit;
-            Debug.Log($"[BotPlayer] Bot {_botId.Value} LifeFruit assigned");
         }
 
         // ==================
@@ -238,7 +233,6 @@ namespace AI.Bot
             // 3. Проверяем таймаут агро - если слишком долго сражаемся или далеко от базы, отвязываемся
             if (ShouldDisengage())
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} disengaging - aggro timeout or too far from base");
                 ResetAggroState();
                 _state.Value = BotState.Idle;
                 return;
@@ -308,7 +302,8 @@ namespace AI.Bot
             }
 
             // 9. Если можем посадить ещё турелей - ищем растения (фарм)
-            if (CanPlantMoreTurrets())
+            bool canPlant = CanPlantMoreTurrets();
+            if (canPlant)
             {
                 TurretPlant plant = FindNearestWildPlant();
                 if (plant != null)
@@ -482,14 +477,12 @@ namespace AI.Bot
                 // Проверяем это наше целевое растение ещё Wild
                 if (_targetPlant.State != TurretPlantState.Wild)
                 {
-                    Debug.Log($"[BotPlayer] Bot {_botId.Value} - plant no longer Wild, finding another");
                     _targetPlant = null;
                     _state.Value = BotState.Idle;
                     return;
                 }
 
                 // Растение атакует - ждём на безопасном расстоянии
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} - plant is attacking, waiting... (dist: {distToPlant:F1})");
 
                 float safeDist = 5f;
                 if (distToPlant < safeDist)
@@ -508,7 +501,6 @@ namespace AI.Bot
             // Растение доступно - подходим и копаем
             if (distToPlant <= interactRange)
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} - in range ({distToPlant:F1}), starting dig");
                 _state.Value = BotState.DiggingPlant;
                 _actionTimer = digTime;
                 _agent.ResetPath();
@@ -565,14 +557,12 @@ namespace AI.Bot
         {
             if (_targetPlant == null)
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} - target plant is null");
                 _state.Value = BotState.Idle;
                 return;
             }
 
             if (!_targetPlant.CanBePickedUp)
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} - plant cannot be picked up (state or already taken)");
                 _targetPlant = null;
                 _state.Value = BotState.Idle;
                 return;
@@ -582,8 +572,6 @@ namespace AI.Bot
 
             if (_actionTimer <= 0f)
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} trying to pickup plant...");
-
                 // Подбираем растение
                 if (_targetPlant.TryPickup(_botId.Value))
                 {
@@ -591,12 +579,9 @@ namespace AI.Bot
                     _targetPlant = null;
                     _agent.speed = moveSpeed * carrySpeedMultiplier;
                     _state.Value = BotState.CarryingPlant;
-
-                    Debug.Log($"[BotPlayer] Bot {_botId.Value} SUCCESS - picked up plant!");
                 }
                 else
                 {
-                    Debug.Log($"[BotPlayer] Bot {_botId.Value} FAILED to pickup plant");
                     _targetPlant = null;
                     _state.Value = BotState.Idle;
                 }
@@ -648,8 +633,6 @@ namespace AI.Bot
                 // Сажаем растение
                 Vector3 plantPos = GetPlantingPosition();
                 _carriedPlant.Plant(_botId.Value, plantPos);
-
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} planted turret at {plantPos}");
 
                 _carriedPlant = null;
                 _agent.speed = moveSpeed;
@@ -733,7 +716,6 @@ namespace AI.Bot
             var raidTargetHealth = _raidTarget.GetComponent<Health>();
             if (raidTargetHealth != null && raidTargetHealth.IsDead)
             {
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} - raid target destroyed!");
                 _raidTarget = null;
                 _raidTurretTarget = null;
                 _state.Value = BotState.Idle;
@@ -790,10 +772,20 @@ namespace AI.Bot
             if (bulletPrefab == null) return;
 
             Transform spawnPoint = shootPoint != null ? shootPoint : transform;
-
-            // Целимся в центр массы врага
-            Vector3 targetPoint = target.position;
             Vector3 spawnPos = spawnPoint.position;
+
+            // Целимся в центр массы врага (высота 1м от пола)
+            Vector3 targetPoint = target.position + Vector3.up * 1f;
+
+            // Проверяем что бот повернут к цели (угол < 15 градусов)
+            Vector3 toTarget = (targetPoint - transform.position);
+            toTarget.y = 0;
+            float angle = Vector3.Angle(transform.forward, toTarget);
+            if (angle > 15f)
+            {
+                // Не стреляем пока не повернёмся
+                return;
+            }
 
             Vector3 direction = (targetPoint - spawnPos).normalized;
             Quaternion rotation = Quaternion.LookRotation(direction);
@@ -828,7 +820,10 @@ namespace AI.Bot
 
             foreach (var plant in plants)
             {
-                if (plant == null || !plant.CanBePickedUp) continue;
+                if (plant == null) continue;
+
+                // Ищем только дикие растения (даже если они атакуют)
+                if (plant.State != TurretPlantState.Wild) continue;
 
                 float dist = Vector3.Distance(transform.position, plant.transform.position);
                 if (dist < nearestDist)
@@ -1055,7 +1050,6 @@ namespace AI.Bot
             {
                 _raidTarget = targetFruit;
                 _raidTurretTarget = FindEnemyTurretNear(targetFruit);
-                Debug.Log($"[BotPlayer] Bot {_botId.Value} starting raid on enemy base!");
                 return true;
             }
 
@@ -1131,8 +1125,6 @@ namespace AI.Bot
 
         private void OnBotDeath()
         {
-            Debug.Log($"[BotPlayer] Bot {_botId.Value} died!");
-
             // Бросаем растение если несли
             if (_carriedPlant != null)
             {
@@ -1158,8 +1150,6 @@ namespace AI.Bot
 
         private void OnBotRevive()
         {
-            Debug.Log($"[BotPlayer] Bot {_botId.Value} revived!");
-
             // Сбрасываем состояние
             _state.Value = BotState.Idle;
             _targetPlant = null;
